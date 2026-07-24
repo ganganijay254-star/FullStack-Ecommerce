@@ -1,16 +1,17 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { orderAPI } from "../services/api";
 
 const money = (amount) => `₹${Number(amount || 0).toFixed(2)}`;
 
 export default function Cart() {
-  const { user } = useAuth();
   const { cart, loading, updateItem, removeItem, clearCart } = useCart();
   const navigate = useNavigate();
+  const [checkingOut, setCheckingOut] = useState(false);
 
   const changeQuantity = async (item, quantity) => {
     if (quantity < 1 || quantity > item.stock) return;
@@ -37,6 +38,36 @@ export default function Cart() {
     } catch {
       toast.error("Could not clear cart.");
     }
+  };
+
+  const loadRazorpay = () => new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+  const checkout = async () => {
+    setCheckingOut(true);
+    try {
+      const ready = await loadRazorpay();
+      if (!ready) throw new Error("Checkout could not be loaded.");
+      const response = await orderAPI.createCheckout();
+      const payment = new window.Razorpay({
+        key: response.data.key, amount: response.data.amount, currency: response.data.currency,
+        name: "ShopEase", description: "Secure test payment", order_id: response.data.order_id,
+        theme: { color: "#2563eb" },
+        handler: async (paymentResponse) => {
+          try { await orderAPI.verifyPayment(paymentResponse); await clearCart(); toast.success("Payment verified. Your order is confirmed!"); navigate("/orders"); }
+          catch (error) { toast.error(error.response?.data?.message || "Payment could not be verified."); }
+        },
+        modal: { ondismiss: () => setCheckingOut(false) },
+      });
+      payment.open();
+    } catch (error) { toast.error(error.response?.data?.message || error.message || "Could not start checkout."); }
+    finally { setCheckingOut(false); }
   };
 
   return (
@@ -82,7 +113,8 @@ export default function Cart() {
               <h2 className="font-semibold text-slate-800 text-lg">Order Summary</h2>
               <div className="flex justify-between text-sm text-slate-600 mt-4"><span>Items ({cart.item_count})</span><span>{money(cart.total)}</span></div>
               <div className="flex justify-between font-bold text-slate-800 border-t border-slate-200 mt-4 pt-4"><span>Total</span><span>{money(cart.total)}</span></div>
-              <button onClick={() => navigate("/")} className="w-full mt-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold cursor-pointer">Continue Shopping</button>
+              <button onClick={checkout} disabled={checkingOut} className="w-full mt-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg font-semibold cursor-pointer">{checkingOut ? "Opening checkout..." : "Secure Checkout"}</button>
+              <button onClick={() => navigate("/")} className="w-full mt-2 py-2 text-sm text-slate-600 hover:text-blue-600 cursor-pointer">Continue shopping</button>
             </aside>
           </div>
         )}

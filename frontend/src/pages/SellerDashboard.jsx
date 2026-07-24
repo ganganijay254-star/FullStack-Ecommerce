@@ -1,70 +1,14 @@
+import { useEffect, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { orderAPI, productAPI } from "../services/api";
 
 export default function SellerDashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login", { replace: true });
-  };
-
-  const menuItems = [
-    { label: "Dashboard", path: "/seller/dashboard", icon: "📊", end: true },
-    { label: "My Products", path: "/seller/products", icon: "📦" },
-    { label: "Orders", path: "/seller/orders", icon: "🛒" },
-    { label: "Profile", path: "/seller/profile", icon: "👤" },
-  ];
-
-  const isRootDashboard =
-    location.pathname === "/seller/dashboard" || location.pathname === "/seller/dashboard/";
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800">🛍️ ShopEase Seller</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500">👋 {user?.full_name}</span>
-            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full uppercase">
-              {user?.role}
-            </span>
-            <button
-              onClick={() => navigate("/")}
-              className="px-4 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer"
-            >
-              View Store
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <div className="flex">
-        <Sidebar role="seller" menuItems={menuItems} onLogout={handleLogout} />
-
-        <main className="flex-1 p-6">
-          {isRootDashboard ? (
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Dashboard Overview</h2>
-              <p className="text-slate-500 mb-6">Welcome to your seller dashboard, {user?.full_name}.</p>
-
-              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
-                <p className="text-lg mb-1">📊 Dashboard analytics coming soon.</p>
-                <p className="text-sm">
-                  Use the sidebar to manage your products and view orders.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <Outlet />
-          )}
-        </main>
-      </div>
-    </div>
-  );
+  const { user, logout } = useAuth(); const navigate = useNavigate(); const location = useLocation();
+  const root = location.pathname === "/seller/dashboard" || location.pathname === "/seller/dashboard/";
+  const [stats, setStats] = useState({ total_orders: 0, total_sales: 0 }); const [productCount, setProductCount] = useState(0);
+  useEffect(() => { if (!root) return; Promise.all([orderAPI.getStats(), productAPI.getMyProducts({ page: 1, per_page: 1 })]).then(([orders, products]) => { setStats(orders.data); setProductCount(products.data.pagination?.total || 0); }).catch(() => {}); }, [root]);
+  const menuItems = [{ label: "Dashboard", path: "/seller/dashboard", icon: "⌘", end: true }, { label: "My Products", path: "/seller/products", icon: "□" }, { label: "Orders", path: "/seller/orders", icon: "◫" }, { label: "Profile", path: "/profile", icon: "◎" }];
+  return <div className="min-h-screen bg-slate-100"><nav className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-20"><div className="max-w-screen-2xl mx-auto px-5 py-3 flex items-center justify-between"><h1 className="text-xl font-black tracking-tight text-slate-900">ShopEase <span className="text-emerald-600">Seller</span></h1><div className="flex items-center gap-3"><span className="hidden sm:block text-sm text-slate-500">{user?.full_name}</span><button onClick={() => navigate("/")} className="px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer">View Store</button></div></div></nav><div className="flex"><Sidebar role="seller" menuItems={menuItems} onLogout={() => { logout(); navigate("/login", { replace: true }); }} /><main className="flex-1 p-5 sm:p-8 min-w-0">{root ? <><p className="text-xs font-bold tracking-widest text-emerald-600 uppercase">Seller workspace</p><h2 className="text-3xl font-bold text-slate-900 mt-1">Your store, at a glance.</h2><p className="text-slate-500 mt-2 mb-7">Track your products and earnings from paid orders.</p><div className="grid sm:grid-cols-3 gap-4">{[["Your sales", `₹${Number(stats.total_sales).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, "bg-emerald-600"], ["Orders", stats.total_orders, "bg-cyan-600"], ["Live products", productCount, "bg-slate-900"]].map(([label, value, color]) => <div key={label} className={`${color} rounded-2xl p-5 text-white shadow-lg shadow-slate-300 transition hover:-translate-y-1`}><p className="text-white/75 text-sm">{label}</p><p className="text-3xl font-bold mt-3">{value}</p></div>)}</div><div className="bg-white rounded-2xl border border-slate-200 mt-6 p-6"><h3 className="font-bold text-slate-900">Ready to sell?</h3><button onClick={() => navigate("/seller/products")} className="mt-4 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold cursor-pointer">Manage my products</button></div></> : <Outlet />}</main></div></div>;
 }

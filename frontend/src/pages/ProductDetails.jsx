@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { productAPI } from "../services/api";
+import { productAPI, wishlistAPI } from "../services/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -17,6 +17,7 @@ export default function ProductDetails() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [imageFailed, setImageFailed] = useState(false);
+  const [wishlisting, setWishlisting] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -53,6 +54,13 @@ export default function ProductDetails() {
     }
   };
 
+  const handleWishlist = async () => {
+    setWishlisting(true);
+    try { await wishlistAPI.addItem(product.id); toast.success("Saved to your wishlist."); }
+    catch (error) { toast.error(error.response?.data?.message || "Could not save this item."); }
+    finally { setWishlisting(false); }
+  };
+
   if (loading) {
     return <div className="min-h-screen bg-slate-50 flex flex-col"><Navbar user={user} onLogout={handleLogout} /><div className="flex-1 flex items-center justify-center"><div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div><Footer /></div>;
   }
@@ -85,7 +93,7 @@ export default function ProductDetails() {
               <div className="mb-6"><h3 className="text-sm font-semibold text-slate-700 mb-2">Description</h3><p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">{product.description || "No description available."}</p></div>
               <div className="mt-auto pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-4"><span className="text-sm font-medium text-slate-700">Quantity</span><div className="flex items-center border border-slate-300 rounded-lg overflow-hidden"><button aria-label="Decrease quantity" onClick={() => setQuantity((current) => Math.max(1, current - 1))} disabled={quantity <= 1} className="w-10 h-10 text-lg hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed cursor-pointer">−</button><span className="w-10 text-center font-medium">{quantity}</span><button aria-label="Increase quantity" onClick={() => setQuantity((current) => Math.min(product.stock, current + 1))} disabled={!inStock || quantity >= product.stock} className="w-10 h-10 text-lg hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed cursor-pointer">+</button></div></div>
-                <button onClick={handleAddToCart} disabled={addingToCart || !inStock} className={`w-full py-3 rounded-lg font-semibold text-white transition cursor-pointer ${inStock ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-400 cursor-not-allowed"}`}>{addingToCart ? "Adding..." : inStock ? "Add to Cart" : "Out of Stock"}</button>
+                <div className="grid grid-cols-[1fr_auto] gap-3"><button onClick={handleAddToCart} disabled={addingToCart || !inStock} className={`py-3 rounded-lg font-semibold text-white transition cursor-pointer ${inStock ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-400 cursor-not-allowed"}`}>{addingToCart ? "Adding..." : inStock ? "Add to Cart" : "Out of Stock"}</button><button onClick={handleWishlist} disabled={wishlisting} aria-label="Add to wishlist" className="px-4 border border-rose-200 text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer">♡</button></div>
               </div>
             </div>
           </div>

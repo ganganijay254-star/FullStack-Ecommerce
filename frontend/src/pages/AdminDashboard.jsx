@@ -1,72 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { orderAPI, productAPI } from "../services/api";
 
 export default function AdminDashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login", { replace: true });
-  };
-
-  const menuItems = [
-    { label: "Dashboard", path: "/admin/dashboard", icon: "📊", end: true },
-    { label: "Products", path: "/admin/products", icon: "📦" },
-    { label: "Users", path: "/admin/users", icon: "👥" },
-    { label: "Orders", path: "/admin/orders", icon: "🛒" },
-    { label: "Categories", path: "/admin/categories", icon: "📁" },
-  ];
-
-  const isRootDashboard =
-    location.pathname === "/admin/dashboard" || location.pathname === "/admin/dashboard/";
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800">🛍️ ShopEase Admin</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500">👋 {user?.full_name}</span>
-            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full uppercase">
-              {user?.role}
-            </span>
-            <button
-              onClick={() => navigate("/")}
-              className="px-4 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer"
-            >
-              View Store
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <div className="flex">
-        <Sidebar role="admin" menuItems={menuItems} onLogout={handleLogout} />
-
-        <main className="flex-1 p-6">
-          {isRootDashboard ? (
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Dashboard Overview</h2>
-              <p className="text-slate-500 mb-6">Welcome to the admin panel, {user?.full_name}.</p>
-
-              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
-                <p className="text-lg mb-1">📊 Dashboard analytics coming soon.</p>
-                <p className="text-sm">
-                  Use the sidebar to manage products, users, orders, and categories.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <Outlet />
-          )}
-        </main>
-      </div>
-    </div>
-  );
+  const { user, logout } = useAuth(); const navigate = useNavigate(); const location = useLocation();
+  const root = location.pathname === "/admin/dashboard" || location.pathname === "/admin/dashboard/";
+  const [stats, setStats] = useState({ total_orders: 0, total_sales: 0 }); const [products, setProducts] = useState(0);
+  useEffect(() => { if (!root) return; Promise.all([orderAPI.getStats(), productAPI.getProducts({ page: 1, per_page: 1 })]).then(([orders, catalog]) => { setStats(orders.data); setProducts(catalog.data.pagination?.total || 0); }).catch(() => {}); }, [root]);
+  const menuItems = [{ label: "Dashboard", path: "/admin/dashboard", icon: "⌘", end: true }, { label: "Products", path: "/admin/products", icon: "□" }, { label: "Users", path: "/admin/users", icon: "◎" }, { label: "Orders", path: "/admin/orders", icon: "◫" }, { label: "Categories", path: "/admin/categories", icon: "◇" }];
+  return <div className="min-h-screen bg-slate-100"><nav className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-20"><div className="max-w-screen-2xl mx-auto px-5 py-3 flex items-center justify-between"><h1 className="text-xl font-black tracking-tight text-slate-900">ShopEase <span className="text-blue-600">Admin</span></h1><div className="flex items-center gap-3"><span className="hidden sm:block text-sm text-slate-500">{user?.full_name}</span><button onClick={() => navigate("/")} className="px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer">View Store</button></div></div></nav><div className="flex"><Sidebar role="admin" menuItems={menuItems} onLogout={() => { logout(); navigate("/login", { replace: true }); }} /><main className="flex-1 p-5 sm:p-8 min-w-0">{root ? <><p className="text-xs font-bold tracking-widest text-blue-600 uppercase">Operations overview</p><h2 className="text-3xl font-bold text-slate-900 mt-1">Good to see you, {user?.full_name?.split(" ")[0]}.</h2><p className="text-slate-500 mt-2 mb-7">Live figures from paid orders and your catalogue.</p><div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{[["Total sales", `₹${Number(stats.total_sales).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, "bg-blue-600"], ["Paid orders", stats.total_orders, "bg-violet-600"], ["Products", products, "bg-emerald-600"]].map(([label, value, color]) => <div key={label} className={`${color} rounded-2xl p-5 text-white shadow-lg shadow-slate-300 transition hover:-translate-y-1`}><p className="text-white/75 text-sm">{label}</p><p className="text-3xl font-bold mt-3">{value}</p></div>)}</div><div className="bg-white rounded-2xl border border-slate-200 mt-6 p-6"><h3 className="font-bold text-slate-900">Quick actions</h3><div className="flex flex-wrap gap-3 mt-4"><button onClick={() => navigate("/admin/products")} className="px-4 py-2.5 bg-slate-900 hover:bg-slate-700 text-white rounded-xl text-sm font-semibold cursor-pointer">Manage products</button><button onClick={() => navigate("/admin/orders")} className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold cursor-pointer">Review orders</button></div></div></> : <Outlet />}</main></div></div>;
 }
