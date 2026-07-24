@@ -17,6 +17,8 @@ import SellerDashboard from "./pages/SellerDashboard";
 import SellerMyProducts from "./pages/seller/SellerMyProducts";
 import SellerOrders from "./pages/seller/SellerOrders";
 import Profile from "./pages/Profile";
+import Wishlist from "./pages/Wishlist";
+import OrderHistory from "./pages/OrderHistory";
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -72,6 +74,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/wishlist" element={<ProtectedRoute allowedRoles={["user", "admin", "seller"]}><Wishlist /></ProtectedRoute>} />
+      <Route path="/orders" element={<ProtectedRoute allowedRoles={["user", "admin", "seller"]}><OrderHistory /></ProtectedRoute>} />
 
       {/* Admin routes with nested layout */}
       <Route

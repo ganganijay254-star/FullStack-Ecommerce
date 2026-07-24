@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:5000";
+// Keep local development working while allowing the deployed frontend to use its Render API.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -89,6 +90,19 @@ export const cartAPI = {
     api.put(`/api/cart/items/${itemId}`, { quantity }).then((res) => res.data),
   removeItem: (itemId) => api.delete(`/api/cart/items/${itemId}`).then((res) => res.data),
   clearCart: () => api.delete("/api/cart").then((res) => res.data),
+};
+
+export const wishlistAPI = {
+  getItems: () => api.get("/api/wishlist").then((res) => res.data),
+  addItem: (productId) => api.post(`/api/wishlist/${productId}`).then((res) => res.data),
+  removeItem: (productId) => api.delete(`/api/wishlist/${productId}`).then((res) => res.data),
+};
+
+export const orderAPI = {
+  createCheckout: () => api.post("/api/orders/checkout").then((res) => res.data),
+  verifyPayment: (payload) => api.post("/api/orders/verify", payload).then((res) => res.data),
+  getOrders: () => api.get("/api/orders").then((res) => res.data),
+  getStats: () => api.get("/api/orders/stats").then((res) => res.data),
 };
 
 export default api;

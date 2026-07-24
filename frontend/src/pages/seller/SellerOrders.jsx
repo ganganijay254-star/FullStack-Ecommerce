@@ -1,12 +1,9 @@
+import { useEffect, useState } from "react";
+import { orderAPI } from "../../services/api";
+
+const money = (amount) => `₹${Number(amount || 0).toFixed(2)}`;
 export default function SellerOrders() {
-  return (
-    <div>
-      <h2 className="text-xl font-bold text-slate-800 mb-2">Orders</h2>
-      <p className="text-sm text-slate-500 mb-6">View orders for your products.</p>
-      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
-        <p className="text-lg mb-1">&#128230; Orders coming soon.</p>
-        <p className="text-sm">This section will show orders placed for your products.</p>
-      </div>
-    </div>
-  );
+  const [orders, setOrders] = useState([]); const [loading, setLoading] = useState(true);
+  useEffect(() => { orderAPI.getOrders().then((r) => setOrders(r.data.orders)).finally(() => setLoading(false)); }, []);
+  return <div><p className="text-xs font-bold tracking-widest text-emerald-600 uppercase">Fulfilment</p><h2 className="text-3xl font-bold text-slate-900 mt-1">Orders for your products</h2><p className="text-slate-500 mt-2 mb-6">Only your products are shown in each order.</p><div className="space-y-4">{loading ? <div className="bg-white rounded-2xl border border-slate-200 p-8 text-slate-500">Loading orders…</div> : orders.length === 0 ? <div className="bg-white rounded-2xl border border-slate-200 p-8 text-slate-500">No paid orders for your products yet.</div> : orders.map((order) => <article key={order.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden"><header className="flex flex-wrap justify-between gap-3 px-5 py-4 bg-slate-50 border-b border-slate-100"><div><p className="font-bold text-slate-900">Order #{order.id}</p><p className="text-sm text-slate-500">Customer: {order.customer}</p></div><div className="text-right"><p className="font-bold">{money(order.total)}</p><p className="text-xs text-slate-400">{new Date(order.created_at).toLocaleDateString("en-IN")}</p></div></header><div className="p-5 space-y-3">{order.items.map((item) => <div key={item.id} className="flex justify-between gap-4 text-sm"><span className="font-medium text-slate-800">{item.name} <span className="text-slate-400">× {item.quantity}</span></span><span className="font-semibold">{money(item.subtotal)}</span></div>)}</div></article>)}</div></div>;
 }
