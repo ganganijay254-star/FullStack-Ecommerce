@@ -6,6 +6,8 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Home from "./pages/Home";
 import ProductDetails from "./pages/ProductDetails";
+import Cart from "./pages/Cart";
+import { CartProvider } from "./context/CartContext";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminManageProducts from "./pages/admin/AdminManageProducts";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -62,6 +64,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/cart"
+        element={
+          <ProtectedRoute allowedRoles={["user", "admin", "seller"]}>
+            <Cart />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin routes with nested layout */}
       <Route
@@ -113,7 +123,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <CartProvider><AppRoutes /></CartProvider>
         <Toaster
           position="top-right"
           toastOptions={{

@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 
 export default function Navbar({ onSearch }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { cart } = useCart();
 
   console.log("[Navbar] Rendering - user:", user?.id, user?.role, "path:", window.location.pathname);
 
@@ -74,18 +76,14 @@ export default function Navbar({ onSearch }) {
           <div className="flex items-center gap-4">
             {user ? (
               <>
-                {/* Cart Icon (UI only) */}
                 <Link
                   to="/cart"
                   className="relative text-slate-600 hover:text-blue-600 transition hidden sm:block"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // Cart not implemented yet
-                  }}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
                   </svg>
+                  {cart.item_count > 0 && <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center">{cart.item_count}</span>}
                 </Link>
 
                 {/* User Menu - Desktop */}

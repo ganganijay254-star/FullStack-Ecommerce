@@ -22,6 +22,8 @@ export default function AdminManageProducts() {
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -47,6 +49,8 @@ export default function AdminManageProducts() {
     setEditingProduct(null);
     setFormData({ name: "", description: "", category: "", price: "", stock: "", image_url: "" });
     setFormErrors({});
+    setImageFile(null);
+    setImagePreview("");
     setShowModal(true);
   };
 
@@ -61,6 +65,8 @@ export default function AdminManageProducts() {
       image_url: product.image_url || "",
     });
     setFormErrors({});
+    setImageFile(null);
+    setImagePreview(product.image_url || "");
     setShowModal(true);
   };
 
@@ -86,13 +92,18 @@ export default function AdminManageProducts() {
 
     setSubmitting(true);
     try {
+      let imageUrl = formData.image_url.trim() || undefined;
+      if (imageFile) {
+        const upload = await productAPI.uploadImage(imageFile);
+        imageUrl = upload.image_url;
+      }
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         category: formData.category.trim() || undefined,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
-        image_url: formData.image_url.trim() || undefined,
+        image_url: imageUrl,
       };
 
       if (editingProduct) {
@@ -333,14 +344,20 @@ export default function AdminManageProducts() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Image URL</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Product Image</label>
                 <input
-                  type="url"
-                  value={formData.image_url}
-                  onChange={handleChange("image_url")}
-                  placeholder="https://example.com/image.jpg"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setImageFile(file);
+                    setImagePreview(file ? URL.createObjectURL(file) : formData.image_url);
+                  }}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/40"
                 />
+                <p className="text-xs text-slate-500 mt-1">JPG, PNG, WEBP, or GIF; maximum 5 MB.</p>
+                {formData.image_url && !imageFile && <p className="text-xs text-slate-500 mt-1">Current image will be kept unless you choose a replacement.</p>}
+                {imagePreview && <img src={imagePreview} alt="Product preview" className="mt-3 h-20 w-20 rounded-lg object-cover border border-slate-200" />}
               </div>
 
               <div className="flex items-center gap-3 pt-2">

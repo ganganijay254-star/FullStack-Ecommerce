@@ -43,6 +43,7 @@ export default function AdminDashboard() {
               View Store
             </button>
           </div>
+        </div>
       </nav>
 
       <div className="flex">
@@ -60,10 +61,12 @@ export default function AdminDashboard() {
                   Use the sidebar to manage products, users, orders, and categories.
                 </p>
               </div>
+            </div>
           ) : (
             <Outlet />
           )}
         </main>
       </div>
+    </div>
   );
 }

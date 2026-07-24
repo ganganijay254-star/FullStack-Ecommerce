@@ -69,8 +69,26 @@ export const productAPI = {
   deleteProduct: (id) =>
     api.delete(`/api/products/${id}`).then((res) => res.data),
 
+  uploadImage: (file) => {
+    const data = new FormData();
+    data.append("image", file);
+    return api.post("/api/products/images", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((res) => res.data);
+  },
+
   getMyProducts: (params = {}) =>
     api.get("/api/products/seller/me", { params }).then((res) => res.data),
+};
+
+export const cartAPI = {
+  getCart: () => api.get("/api/cart").then((res) => res.data),
+  addItem: (productId, quantity = 1) =>
+    api.post("/api/cart/items", { product_id: productId, quantity }).then((res) => res.data),
+  updateItem: (itemId, quantity) =>
+    api.put(`/api/cart/items/${itemId}`, { quantity }).then((res) => res.data),
+  removeItem: (itemId) => api.delete(`/api/cart/items/${itemId}`).then((res) => res.data),
+  clearCart: () => api.delete("/api/cart").then((res) => res.data),
 };
 
 export default api;

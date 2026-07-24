@@ -41,6 +41,7 @@ export default function SellerDashboard() {
               View Store
             </button>
           </div>
+        </div>
       </nav>
 
       <div className="flex">
@@ -58,10 +59,12 @@ export default function SellerDashboard() {
                   Use the sidebar to manage your products and view orders.
                 </p>
               </div>
+            </div>
           ) : (
             <Outlet />
           )}
         </main>
       </div>
+    </div>
   );
 }

@@ -5,9 +5,12 @@ from app.models.product import Product
 class ProductService:
 
     @staticmethod
-    def get_all_products(search=None, category=None, sort_by="latest", page=1, per_page=12):
+    def get_all_products(search=None, category=None, sort_by="latest", page=1, per_page=12, seller_id=None, min_price=None, max_price=None):
         """Get all products with optional filtering, search, and pagination."""
         query = Product.query
+
+        if seller_id is not None:
+            query = query.filter(Product.seller_id == seller_id)
 
         # Search by name
         if search:
@@ -16,6 +19,11 @@ class ProductService:
         # Filter by category
         if category:
             query = query.filter(Product.category == category)
+
+        if min_price is not None:
+            query = query.filter(Product.price >= min_price)
+        if max_price is not None:
+            query = query.filter(Product.price <= max_price)
 
         # Sorting
         if sort_by == "latest":
@@ -57,9 +65,10 @@ class ProductService:
         return product
 
     @staticmethod
-    def create_product(data):
+    def create_product(data, seller_id=None):
         """Create a new product."""
         product = Product(
+            seller_id=seller_id,
             name=data.get("name", "").strip(),
             description=data.get("description", "").strip() or None,
             category=data.get("category", "").strip() or None,
@@ -75,11 +84,13 @@ class ProductService:
         return product
 
     @staticmethod
-    def update_product(product_id, data):
+    def update_product(product_id, data, seller_id=None):
         """Update a product."""
         product = Product.query.get(product_id)
         if not product:
             return None, "Product not found."
+        if seller_id is not None and product.seller_id != seller_id:
+            return None, "You can only manage your own products."
 
         # Update fields if provided
         if "name" in data and data["name"] is not None:
@@ -102,11 +113,13 @@ class ProductService:
         return product, None
 
     @staticmethod
-    def delete_product(product_id):
+    def delete_product(product_id, seller_id=None):
         """Delete a product from the database."""
         product = Product.query.get(product_id)
         if not product:
             return False, "Product not found."
+        if seller_id is not None and product.seller_id != seller_id:
+            return False, "You can only manage your own products."
 
         db.session.delete(product)
         db.session.commit()

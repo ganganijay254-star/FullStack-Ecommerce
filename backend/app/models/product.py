@@ -8,6 +8,8 @@ class Product(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
+    seller_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
     name = db.Column(db.String(200), nullable=False)
 
     description = db.Column(db.Text)
@@ -29,6 +31,8 @@ class Product(db.Model):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+    seller = db.relationship("User", backref=db.backref("products", lazy=True))
 
     # Computed / alias properties for backward compatibility with frontend
     @property
@@ -53,6 +57,8 @@ class Product(db.Model):
             "price": float(self.price) if self.price else None,
             "stock": self.stock,
             "image_url": self.image,
+            "seller_id": self.seller_id,
+            "seller_name": self.seller.full_name if self.seller else None,
             "is_active": True,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
