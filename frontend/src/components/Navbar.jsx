@@ -85,6 +85,12 @@ export default function Navbar({ onSearch }) {
                   </svg>
                   {cart.item_count > 0 && <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center">{cart.item_count}</span>}
                 </Link>
+                <Link to="/wishlist" aria-label="Wishlist" className="hidden sm:block text-slate-600 hover:text-rose-600 transition">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z" /></svg>
+                </Link>
+                {(user.role === "admin" || user.role === "seller") && (
+                  <Link to={user.role === "admin" ? "/admin/products" : "/seller/products"} className="hidden lg:block px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition">Add Product</Link>
+                )}
 
                 {/* User Menu - Desktop */}
                 <div className="hidden md:flex items-center gap-3">
@@ -179,6 +185,8 @@ export default function Navbar({ onSearch }) {
               >
                 Dashboard
               </Link>
+              <Link to="/orders" className="text-sm text-slate-700 py-2 px-2 hover:bg-slate-50 rounded" onClick={() => setMobileMenuOpen(false)}>My orders</Link>
+              {(user.role === "admin" || user.role === "seller") && <Link to={user.role === "admin" ? "/admin/products" : "/seller/products"} className="text-sm text-slate-700 py-2 px-2 hover:bg-slate-50 rounded" onClick={() => setMobileMenuOpen(false)}>Add product</Link>}
               <span className="text-sm text-slate-500 px-2">
                 👋 {user.full_name}
               </span>
