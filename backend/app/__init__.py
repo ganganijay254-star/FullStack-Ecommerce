@@ -29,6 +29,8 @@ def create_app():
     from app.models.user import User
     from app.models.product import Product
     from app.models.cart import Cart, CartItem
+    from app.models.wishlist import WishlistItem
+    from app.models.order import Order, OrderItem
 
 # Register blueprints
     from app.routes.auth_routes import auth_bp
@@ -39,5 +41,11 @@ def create_app():
 
     from app.routes.cart_routes import cart_bp
     app.register_blueprint(cart_bp)
+
+    from app.routes.wishlist_routes import wishlist_bp
+    app.register_blueprint(wishlist_bp)
+
+    from app.routes.order_routes import order_bp
+    app.register_blueprint(order_bp)
 
     return app
