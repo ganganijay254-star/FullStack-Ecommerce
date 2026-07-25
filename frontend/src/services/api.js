@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://fullstack-ecommerce-xrd5.onrender.com";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -8,7 +10,6 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
 });
-
 export const getApiErrorMessage = (error) => {
   if (!error.response) return "Unable to reach the server. Check your connection and try again.";
   if (error.response.status === 403) return "You don't have permission to perform that action.";
