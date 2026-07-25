@@ -1,8 +1,8 @@
-    from flask import Flask
-    from app.models.user import User
-    from app.config.config import Config
-    from app.extensions import db, migrate, bcrypt, jwt, cors
-    from flask_bcrypt import Bcrypt
+from flask import Flask
+from app.models.user import User
+from app.config.config import Config
+from app.extensions import db, migrate, bcrypt, jwt, cors
+from flask_bcrypt import Bcrypt
     
     def create_app():
         app = Flask(__name__)
