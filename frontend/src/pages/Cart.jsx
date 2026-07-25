@@ -55,6 +55,7 @@ export default function Cart() {
       const ready = await loadRazorpay();
       if (!ready) throw new Error("Checkout could not be loaded.");
       const response = await orderAPI.createCheckout();
+      console.log(response);
       const payment = new window.Razorpay({
         key: response.data.key, amount: response.data.amount, currency: response.data.currency,
         name: "ShopEase", description: "Secure test payment", order_id: response.data.order_id,
