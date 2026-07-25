@@ -26,33 +26,33 @@ from flask_bcrypt import Bcrypt
         cors.init_app(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     
         # Import models
-        from app.models.user import User
-        from app.models.product import Product
-        from app.models.cart import Cart, CartItem
-        from app.models.wishlist import WishlistItem
-        from app.models.order import Order, OrderItem
-        from app.models.review import Review
+from app.models.user import User
+from app.models.product import Product
+from app.models.cart import Cart, CartItem
+from app.models.wishlist import WishlistItem
+from app.models.order import Order, OrderItem
+from app.models.review import Review
     
         # Register blueprints
-        from app.routes.auth_routes import auth_bp
+from app.routes.auth_routes import auth_bp
         app.register_blueprint(auth_bp)
     
-        from app.routes.product_routes import product_bp
+from app.routes.product_routes import product_bp
         app.register_blueprint(product_bp)
     
-        from app.routes.cart_routes import cart_bp
+from app.routes.cart_routes import cart_bp
         app.register_blueprint(cart_bp)
     
-        from app.routes.wishlist_routes import wishlist_bp
+from app.routes.wishlist_routes import wishlist_bp
         app.register_blueprint(wishlist_bp)
     
-        from app.routes.order_routes import order_bp
+from app.routes.order_routes import order_bp
         app.register_blueprint(order_bp)
     
-        from app.routes.admin_routes import admin_bp
+from app.routes.admin_routes import admin_bp
         app.register_blueprint(admin_bp)
     
-        from app.routes.review_routes import review_bp
+from app.routes.review_routes import review_bp
         app.register_blueprint(review_bp)
     
             with app.app_context():
