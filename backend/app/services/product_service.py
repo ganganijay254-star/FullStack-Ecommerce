@@ -11,6 +11,8 @@ class ProductService:
 
         if seller_id is not None:
             query = query.filter(Product.seller_id == seller_id)
+        elif seller_id is None:
+            query = query.filter(Product.is_active.is_(True))
 
         # Search by name
         if search:
@@ -107,6 +109,8 @@ class ProductService:
             product.stock = int(data["stock"])
         if "image_url" in data:
             product.image = data["image_url"].strip() if data["image_url"] else None
+        if "is_active" in data and data["is_active"] is not None:
+            product.is_active = bool(data["is_active"])
 
         db.session.commit()
 

@@ -1,6 +1,5 @@
 import axios from "axios";
 
-// Keep local development working while allowing the deployed frontend to use its Render API.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const api = axios.create({
@@ -9,6 +8,13 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+export const getApiErrorMessage = (error) => {
+  if (!error.response) return "Unable to reach the server. Check your connection and try again.";
+  if (error.response.status === 403) return "You don't have permission to perform that action.";
+  if (error.response.status === 404) return "The requested item could not be found.";
+  return error.response.data?.message || "Something went wrong. Please try again.";
+};
 
 // Request interceptor: attach JWT token
 api.interceptors.request.use(
@@ -27,14 +33,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.log("[API 401] URL:", error.config?.url, "Method:", error.config?.method);
-      // Only clear token and redirect if the token is actually expired/invalid
-      // NOT if it's a business logic error being returned as 401
       const token = localStorage.getItem("token");
       if (token) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        // Only redirect if not already on auth pages
         if (
           !window.location.pathname.includes("/login") &&
           !window.location.pathname.includes("/register")
@@ -42,15 +44,12 @@ api.interceptors.response.use(
           window.location.href = "/login";
         }
       }
-    } else {
-      console.log("[API Error]", error.response?.status, error.config?.url, error.message);
     }
     return Promise.reject(error);
   }
 );
 
-// ─── Product API helpers ───
-
+// Product API helpers
 export const productAPI = {
   getProducts: (params = {}) =>
     api.get("/api/products", { params }).then((res) => res.data),
@@ -80,6 +79,9 @@ export const productAPI = {
 
   getMyProducts: (params = {}) =>
     api.get("/api/products/seller/me", { params }).then((res) => res.data),
+
+  toggleActive: (id, is_active) =>
+    api.patch(`/api/products/${id}/active`, { is_active }).then((res) => res.data),
 };
 
 export const cartAPI = {
@@ -98,12 +100,49 @@ export const wishlistAPI = {
   removeItem: (productId) => api.delete(`/api/wishlist/${productId}`).then((res) => res.data),
 };
 
+export const authAPI = {
+  updateProfile: (data) => api.put("/api/auth/profile", data).then((res) => res.data),
+  uploadAvatar: (file) => {
+    const data = new FormData();
+    data.append("image", file);
+    return api.post("/api/auth/avatar", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((res) => res.data);
+  },
+};
+
 export const orderAPI = {
   createCheckout: () => api.post("/api/orders/checkout").then((res) => res.data),
   verifyPayment: (payload) => api.post("/api/orders/verify", payload).then((res) => res.data),
-  getOrders: () => api.get("/api/orders").then((res) => res.data),
+  getOrders: (params = {}) => api.get("/api/orders", { params }).then((res) => res.data),
+  getOrderDetails: (id) => api.get(`/api/orders/${id}`).then((res) => res.data),
   getStats: () => api.get("/api/orders/stats").then((res) => res.data),
+  updateStatus: (id, status) => api.patch(`/api/orders/${id}/status`, { status }).then((res) => res.data),
+  returnOrder: (id) => api.post(`/api/orders/${id}/return`).then((res) => res.data),
+  getSellerDashboard: () => api.get("/api/orders/seller/dashboard").then((res) => res.data),
+};
+
+export const reviewAPI = {
+  getReviews: (productId, params = {}) =>
+    api.get(`/api/products/${productId}/reviews`, { params }).then((res) => res.data),
+  createReview: (productId, data) =>
+    api.post(`/api/products/${productId}/reviews`, data).then((res) => res.data),
+  updateReview: (reviewId, data) =>
+    api.put(`/api/reviews/${reviewId}`, data).then((res) => res.data),
+  deleteReview: (reviewId) =>
+    api.delete(`/api/reviews/${reviewId}`).then((res) => res.data),
+  markHelpful: (reviewId) =>
+    api.post(`/api/reviews/${reviewId}/helpful`).then((res) => res.data),
+};
+
+export const adminAPI = {
+  getUsers: (params = {}) => api.get("/api/admin/users", { params }).then((res) => res.data),
+  getUser: (id) => api.get(`/api/admin/users/${id}`).then((res) => res.data),
+  getUserStats: () => api.get("/api/admin/users/stats").then((res) => res.data),
+  updateUserStatus: (id, is_active) => api.patch(`/api/admin/users/${id}/status`, { is_active }).then((res) => res.data),
+  deleteUser: (id) => api.delete(`/api/admin/users/${id}`).then((res) => res.data),
+  exportUsers: () => api.get("/api/admin/export/users").then((res) => res.data),
+  exportOrders: () => api.get("/api/admin/export/orders").then((res) => res.data),
 };
 
 export default api;
-

@@ -24,6 +24,11 @@ class Product(db.Model):
 
     image = db.Column(db.String(500))
 
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     updated_at = db.Column(
@@ -33,6 +38,7 @@ class Product(db.Model):
     )
 
     seller = db.relationship("User", backref=db.backref("products", lazy=True))
+    reviews = db.relationship("Review", back_populates="product", cascade="all, delete-orphan", lazy="select")
 
     # Computed / alias properties for backward compatibility with frontend
     @property
@@ -44,8 +50,14 @@ class Product(db.Model):
         self.image = value
 
     @property
-    def is_active(self):
-        return True
+    def avg_rating(self):
+        if not self.reviews:
+            return 0.0
+        return round(sum(r.rating for r in self.reviews) / len(self.reviews), 1)
+
+    @property
+    def review_count(self):
+        return len(self.reviews) if self.reviews else 0
 
     def to_dict(self):
         return {
@@ -59,7 +71,9 @@ class Product(db.Model):
             "image_url": self.image,
             "seller_id": self.seller_id,
             "seller_name": self.seller.full_name if self.seller else None,
-            "is_active": True,
+            "is_active": self.is_active,
+            "avg_rating": self.avg_rating,
+            "review_count": self.review_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -31,8 +31,9 @@ def create_app():
     from app.models.cart import Cart, CartItem
     from app.models.wishlist import WishlistItem
     from app.models.order import Order, OrderItem
+    from app.models.review import Review
 
-# Register blueprints
+    # Register blueprints
     from app.routes.auth_routes import auth_bp
     app.register_blueprint(auth_bp)
 
@@ -47,5 +48,22 @@ def create_app():
 
     from app.routes.order_routes import order_bp
     app.register_blueprint(order_bp)
+
+    from app.routes.admin_routes import admin_bp
+    app.register_blueprint(admin_bp)
+
+    from app.routes.review_routes import review_bp
+    app.register_blueprint(review_bp)
+
+    with app.app_context():
+        db.create_all()
+
+    @jwt.unauthorized_loader
+    def missing_token(message):
+        return {"success": False, "message": "Please sign in to continue."}, 401
+
+    @jwt.invalid_token_loader
+    def invalid_token(message):
+        return {"success": False, "message": "Your session is invalid. Please sign in again."}, 401
 
     return app

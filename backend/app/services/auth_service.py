@@ -45,8 +45,13 @@ class AuthService:
         if not user:
             return {"success": False, "message": "Invalid email or password."}, None
 
-        # Verify password
-        if not bcrypt.check_password_hash(user.password, password):
+        # Verify password safely
+        try:
+            is_valid = bcrypt.check_password_hash(user.password, password)
+        except Exception:
+            is_valid = False
+
+        if not is_valid:
             return {"success": False, "message": "Invalid email or password."}, None
 
         # Check if user is active

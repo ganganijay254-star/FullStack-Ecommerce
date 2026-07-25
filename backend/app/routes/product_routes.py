@@ -1,5 +1,8 @@
-import cloudinary
-import cloudinary.uploader
+try:
+    import cloudinary
+    import cloudinary.uploader
+except ImportError:
+    cloudinary = None
 import traceback
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt
@@ -69,6 +72,8 @@ def upload_product_image():
     if image_size > MAX_IMAGE_SIZE:
         return jsonify({"success": False, "message": "Image must be 5 MB or smaller."}), 400
 
+    if not cloudinary:
+        return jsonify({"success": False, "message": "Image uploads are temporarily unavailable. Cloudinary is not installed on the server."}), 503
     if not all((current_app.config["CLOUDINARY_CLOUD_NAME"], current_app.config["CLOUDINARY_API_KEY"], current_app.config["CLOUDINARY_API_SECRET"])):
         return jsonify({"success": False, "message": "Cloudinary is not configured."}), 400
 
@@ -115,6 +120,18 @@ def get_seller_products():
         return error, status
     filters["seller_id"] = get_jwt()["id"]
     return jsonify({"success": True, "data": ProductService.get_all_products(**filters)}), 200
+
+
+@product_bp.route("/<int:product_id>/active", methods=["PATCH"])
+@role_required("seller")
+def toggle_product_active(product_id):
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data.get("is_active"), bool):
+        return jsonify({"success": False, "message": "is_active must be a boolean."}), 400
+    product, error = ProductService.update_product(product_id, {"is_active": data["is_active"]}, seller_id=get_jwt()["id"])
+    if error:
+        return jsonify({"success": False, "message": error}), 403 if "own" in error else 404
+    return jsonify({"success": True, "message": "Product visibility updated.", "data": {"product": product.to_dict()}})
 
 
 @product_bp.route("/<int:product_id>", methods=["GET"])

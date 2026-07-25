@@ -136,6 +136,16 @@ export default function SellerMyProducts() {
     }
   };
 
+  const toggleActive = async (product) => {
+    try {
+      await productAPI.toggleActive(product.id, !product.is_active);
+      toast.success(`Product ${product.is_active ? "hidden" : "published"}.`);
+      fetchProducts();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not update product visibility.");
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -221,6 +231,12 @@ export default function SellerMyProducts() {
                           className="px-3 py-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition cursor-pointer"
                         >
                           Edit
+                        </button>
+                        <button
+                          onClick={() => toggleActive(product)}
+                          className="px-3 py-1 text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition cursor-pointer"
+                        >
+                          {product.is_active ? "Hide" : "Activate"}
                         </button>
                         <button
                           onClick={() => handleDelete(product)}

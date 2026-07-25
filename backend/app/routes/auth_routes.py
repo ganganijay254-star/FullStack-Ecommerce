@@ -57,35 +57,38 @@ def register():
 @auth_bp.route("/login", methods=["POST"])
 def login():
     """Authenticate user and return JWT token."""
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    if not data:
-        return jsonify({"success": False, "message": "Request body is required."}), 400
+        if not data:
+            return jsonify({"success": False, "message": "Request body is required."}), 400
 
-    # Validate input
-    errors = validate_login_data(data)
-    if errors:
-        return jsonify({"success": False, "message": "Validation failed.", "errors": errors}), 400
+        # Validate input
+        errors = validate_login_data(data)
+        if errors:
+            return jsonify({"success": False, "message": "Validation failed.", "errors": errors}), 400
 
-    # Authenticate user
-    result, user = AuthService.login_user(data)
-    if not result["success"]:
-        return jsonify(result), 401
+        # Authenticate user
+        result, user = AuthService.login_user(data)
+        if not result["success"]:
+            return jsonify(result), 401
 
-    # Generate JWT token
-    token = _generate_jwt_token(user)
+        # Generate JWT token
+        token = _generate_jwt_token(user)
 
-    return jsonify({
-        "success": True,
-        "message": "Login successful.",
-        "token": token,
-        "user": {
-            "id": user.id,
-            "full_name": user.full_name,
-            "email": user.email,
-            "role": user.role,
-        }
-    }), 200
+        return jsonify({
+            "success": True,
+            "message": "Login successful.",
+            "token": token,
+            "user": {
+                "id": user.id,
+                "full_name": user.full_name,
+                "email": user.email,
+                "role": user.role,
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Login failed: {str(e)}"}), 500
 
 
 @auth_bp.route("/me", methods=["GET"])
@@ -106,13 +109,77 @@ def get_current_user():
 
     return jsonify({
         "success": True,
-        "user": {
-            "id": user.id,
-            "full_name": user.full_name,
-            "email": user.email,
-            "phone": user.phone,
-            "role": user.role,
-            "is_active": user.is_active,
-        }
+        "user": user.to_dict()
     }), 200
+
+
+@auth_bp.route("/profile", methods=["PUT"])
+@jwt_required
+def update_profile():
+    """Update user/seller profile details (full_name, phone, avatar_url)."""
+    user_id = get_jwt().get("id")
+    from app.models.user import User
+    from app.extensions import db
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"success": False, "message": "User not found."}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    if "full_name" in data and data["full_name"]:
+        user.full_name = data["full_name"].strip()
+    if "phone" in data:
+        user.phone = data["phone"].strip() if data["phone"] else None
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Profile updated successfully.",
+        "user": user.to_dict()
+    }), 200
+
+
+@auth_bp.route("/avatar", methods=["POST"])
+@jwt_required
+def upload_avatar():
+    """Stream user profile photo to Cloudinary."""
+    from flask import current_app
+    try:
+        import cloudinary
+        import cloudinary.uploader
+    except ImportError:
+        cloudinary = None
+
+    image = request.files.get("image")
+    if not image or not image.filename:
+        return jsonify({"success": False, "message": "An image file is required."}), 400
+
+    if not cloudinary or not all((current_app.config.get("CLOUDINARY_CLOUD_NAME"), current_app.config.get("CLOUDINARY_API_KEY"), current_app.config.get("CLOUDINARY_API_SECRET"))):
+        return jsonify({"success": False, "message": "Cloudinary is not configured."}), 503
+
+    cloudinary.config(
+        cloud_name=current_app.config["CLOUDINARY_CLOUD_NAME"],
+        api_key=current_app.config["CLOUDINARY_API_KEY"],
+        api_secret=current_app.config["CLOUDINARY_API_SECRET"],
+        secure=True,
+    )
+
+    try:
+        result = cloudinary.uploader.upload(
+            image,
+            folder="shopease/avatars",
+            resource_type="image"
+        )
+        avatar_url = result["secure_url"]
+
+        user_id = get_jwt().get("id")
+        from app.models.user import User
+        from app.extensions import db
+        user = db.session.get(User, user_id)
+
+        return jsonify({"success": True, "avatar_url": avatar_url, "user": user.to_dict() if user else None}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 502
 
