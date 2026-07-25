@@ -48,6 +48,16 @@ def validate_create_product_data(data):
     if image_url and len(image_url) > 500:
         errors["image_url"] = "Image URL must be at most 500 characters."
 
+    # discount_percent (optional)
+    discount_percent = data.get("discount_percent")
+    if discount_percent is not None:
+        try:
+            disc_val = float(discount_percent)
+            if disc_val < 0 or disc_val > 100:
+                errors["discount_percent"] = "Discount percentage must be between 0 and 100."
+        except (ValueError, TypeError):
+            errors["discount_percent"] = "Discount percentage must be a valid number."
+
     return errors
 
 
@@ -96,5 +106,15 @@ def validate_update_product_data(data):
     image_url = data.get("image_url")
     if image_url is not None and len(image_url) > 500:
         errors["image_url"] = "Image URL must be at most 500 characters."
+
+    # discount_percent (optional)
+    discount_percent = data.get("discount_percent")
+    if discount_percent is not None:
+        try:
+            disc_val = float(discount_percent)
+            if disc_val < 0 or disc_val > 100:
+                errors["discount_percent"] = "Discount percentage must be between 0 and 100."
+        except (ValueError, TypeError):
+            errors["discount_percent"] = "Discount percentage must be a valid number."
 
     return errors

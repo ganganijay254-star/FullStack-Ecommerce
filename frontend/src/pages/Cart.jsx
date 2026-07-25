@@ -97,7 +97,19 @@ export default function Cart() {
                   </Link>
                   <div className="min-w-0 flex-1">
                     <Link to={`/products/${item.product_id}`} className="font-semibold text-slate-800 hover:text-blue-600">{item.name}</Link>
-                    <p className="text-sm text-slate-500 mt-1">{money(item.unit_price)} each</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm font-bold text-slate-900">{money(item.unit_price)} each</p>
+                      {item.discount_percent > 0 && item.original_price > item.unit_price && (
+                        <span className="text-xs text-slate-400 line-through font-normal">
+                          {money(item.original_price)}
+                        </span>
+                      )}
+                      {item.discount_percent > 0 && (
+                        <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-extrabold rounded">
+                          -{item.discount_percent}% OFF
+                        </span>
+                      )}
+                    </div>
                     <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
                       <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
                         <button aria-label="Decrease quantity" onClick={() => changeQuantity(item, item.quantity - 1)} disabled={item.quantity <= 1} className="w-8 h-8 text-lg disabled:text-slate-300 cursor-pointer disabled:cursor-not-allowed">−</button>
@@ -112,6 +124,16 @@ export default function Cart() {
             </section>
             <aside className="bg-white border border-slate-200 rounded-xl p-5 h-fit">
               <h2 className="font-semibold text-slate-800 text-lg">Order Summary</h2>
+              
+              {/* Delivery Estimation Box */}
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
+                <span className="text-lg">🚚</span>
+                <div>
+                  <p className="text-xs font-bold text-blue-900">Estimated Delivery: 3 to 4 Days</p>
+                  <p className="text-[11px] text-blue-700">Orders placed now ship with auto-confirmation.</p>
+                </div>
+              </div>
+
               <div className="flex justify-between text-sm text-slate-600 mt-4"><span>Items ({cart.item_count})</span><span>{money(cart.total)}</span></div>
               <div className="flex justify-between font-bold text-slate-800 border-t border-slate-200 mt-4 pt-4"><span>Total</span><span>{money(cart.total)}</span></div>
               <button onClick={checkout} disabled={checkingOut} className="w-full mt-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg font-semibold cursor-pointer">{checkingOut ? "Opening checkout..." : "Secure Checkout"}</button>

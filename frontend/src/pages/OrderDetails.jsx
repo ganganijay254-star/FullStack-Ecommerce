@@ -96,6 +96,10 @@ export default function OrderDetails() {
   const shippingCharge = subtotal > 500 ? 0 : 49;
   const grandTotal = order.total || subtotal + tax + shippingCharge;
 
+  // Estimated delivery dates (3-4 days)
+  const estMinDate = order.estimated_delivery?.min_date || new Date(new Date(order.created_at || Date.now()).getTime() + 3*24*60*60*1000).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+  const estMaxDate = order.estimated_delivery?.max_date || new Date(new Date(order.created_at || Date.now()).getTime() + 4*24*60*60*1000).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar user={user} onLogout={handleLogout} />
@@ -108,13 +112,11 @@ export default function OrderDetails() {
               &larr; Back to All Orders
             </Link>
             <h1 className="text-2xl font-extrabold text-slate-900">Order Details</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Ordered on {orderDate} | Order #{order.id}
-            </p>
+            <p className="text-xs text-slate-500 font-mono mt-0.5">Order ID #{order.id} · Placed on {orderDate}</p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {!["cancelled", "returned"].includes(order.status) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {currentStatus !== "cancelled" && currentStatus !== "returned" && (
               <button
                 disabled={actionLoading}
                 onClick={handleReturnOrder}
@@ -129,6 +131,30 @@ export default function OrderDetails() {
             >
               <span>📄 Download Tax Invoice</span>
             </button>
+          </div>
+        </div>
+
+        {/* 3 to 4 Days Delivery & Auto-Confirmation Banner */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 mb-6 text-white shadow-lg relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-2.5 py-0.5 bg-emerald-400 text-slate-950 font-extrabold text-[11px] rounded-full uppercase tracking-wider">
+                  ✓ Auto-Confirmed
+                </span>
+                <span className="px-2.5 py-0.5 bg-white/20 backdrop-blur-md text-white font-semibold text-[11px] rounded-full">
+                  Fast Dispatch
+                </span>
+              </div>
+              <h2 className="text-xl font-black">Estimated Delivery: 3 - 4 Days</h2>
+              <p className="text-xs text-blue-100 mt-1 font-medium">
+                Expected delivery window: <span className="font-bold text-white underline">{estMinDate} – {estMaxDate}</span>
+              </p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 text-center min-w-[140px]">
+              <p className="text-[10px] text-blue-200 uppercase tracking-widest font-bold">Carrier Status</p>
+              <p className="text-sm font-extrabold text-emerald-300 mt-0.5">Order Confirmed</p>
+            </div>
           </div>
         </div>
 

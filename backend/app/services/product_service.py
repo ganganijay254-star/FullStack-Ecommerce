@@ -76,6 +76,7 @@ class ProductService:
             category=data.get("category", "").strip() or None,
             brand=data.get("brand", "").strip() or None,
             price=float(data["price"]),
+            discount_percent=float(data.get("discount_percent") or 0.0),
             stock=int(data["stock"]) if data.get("stock") else 0,
             image=data.get("image_url", "").strip() or None,
         )
@@ -105,6 +106,8 @@ class ProductService:
             product.brand = data["brand"].strip() if data["brand"] else None
         if "price" in data and data["price"] is not None:
             product.price = float(data["price"])
+        if "discount_percent" in data and data["discount_percent"] is not None:
+            product.discount_percent = float(data["discount_percent"])
         if "stock" in data and data["stock"] is not None:
             product.stock = int(data["stock"])
         if "image_url" in data:

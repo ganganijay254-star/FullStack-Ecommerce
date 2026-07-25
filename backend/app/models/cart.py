@@ -46,7 +46,9 @@ class CartItem(db.Model):
 
     def to_dict(self):
         product = self.product
-        unit_price = float(product.price)
+        unit_price = float(product.final_price) if hasattr(product, "final_price") else float(product.price)
+        orig_price = float(product.price)
+        discount_percent = float(getattr(product, "discount_percent", 0.0) or 0.0)
         return {
             "id": self.id,
             "product_id": product.id,
@@ -55,6 +57,8 @@ class CartItem(db.Model):
             "image_url": product.image_url,
             "stock": product.stock or 0,
             "unit_price": unit_price,
+            "original_price": orig_price,
+            "discount_percent": discount_percent,
             "quantity": self.quantity,
             "subtotal": round(unit_price * self.quantity, 2),
         }

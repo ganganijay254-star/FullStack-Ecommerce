@@ -99,7 +99,27 @@ export default function ProductDetails() {
                 </span>
               </div>
 
-              <div className="text-3xl font-extrabold text-slate-900 mb-4">&#8377;{product.price?.toFixed(2)}</div>
+              <div className="flex items-baseline gap-3 mb-3 flex-wrap">
+                <span className="text-3xl font-extrabold text-slate-900">&#8377;{product.price?.toFixed(2)}</span>
+                {product.discount_percent > 0 && product.original_price > product.price && (
+                  <>
+                    <span className="text-lg text-slate-400 line-through">&#8377;{product.original_price?.toFixed(2)}</span>
+                    <span className="px-2.5 py-1 bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200">
+                      {product.discount_percent}% OFF
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* 3-4 Day Delivery Estimate Badge */}
+              <div className="mb-5 p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center gap-3">
+                <span className="text-xl">🚚</span>
+                <div>
+                  <p className="text-xs font-bold text-blue-900">Standard Delivery (3 - 4 Days)</p>
+                  <p className="text-[11px] text-blue-700">Orders placed today automatically ship with end-to-end tracking.</p>
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${inStock ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{inStock ? `${product.stock} in stock` : "Out of stock"}</span>
                 <span className="text-slate-500 text-xs">Seller: <strong className="text-slate-700">{product.seller_name || "Official Store"}</strong></span>

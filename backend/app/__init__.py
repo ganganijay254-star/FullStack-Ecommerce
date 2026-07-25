@@ -23,7 +23,7 @@ def create_app():
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app)
+    cors.init_app(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
     # Import models
     from app.models.user import User
@@ -57,6 +57,13 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        try:
+            from sqlalchemy import text
+            db.session.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percent FLOAT DEFAULT 0.0;"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning("Auto migration check: %s", e)
 
     @jwt.unauthorized_loader
     def missing_token(message):

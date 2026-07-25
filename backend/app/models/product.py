@@ -24,10 +24,9 @@ class Product(db.Model):
 
     image = db.Column(db.String(500))
 
+    discount_percent = db.Column(db.Float, default=0.0, nullable=False)
+
     is_active = db.Column(db.Boolean, nullable=False, default=True)
-
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -50,6 +49,15 @@ class Product(db.Model):
         self.image = value
 
     @property
+    def final_price(self):
+        if self.price is None:
+            return 0.0
+        disc = float(self.discount_percent or 0.0)
+        if disc > 0:
+            return round(float(self.price) * (1.0 - disc / 100.0), 2)
+        return round(float(self.price), 2)
+
+    @property
     def avg_rating(self):
         if not self.reviews:
             return 0.0
@@ -60,13 +68,19 @@ class Product(db.Model):
         return len(self.reviews) if self.reviews else 0
 
     def to_dict(self):
+        orig_price = float(self.price) if self.price is not None else None
+        disc = float(self.discount_percent or 0.0)
+        f_price = self.final_price
         return {
             "id": self.id,
             "name": self.name,
             "description": self.description,
             "category": self.category,
             "brand": self.brand,
-            "price": float(self.price) if self.price else None,
+            "price": f_price,
+            "original_price": orig_price,
+            "discount_percent": disc,
+            "final_price": f_price,
             "stock": self.stock,
             "image_url": self.image,
             "seller_id": self.seller_id,

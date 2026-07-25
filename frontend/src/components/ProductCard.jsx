@@ -24,6 +24,11 @@ export default function ProductCard({ product }) {
             {product.category}
           </span>
         )}
+        {product.discount_percent > 0 && (
+          <span className="absolute top-3 right-3 px-2.5 py-1 bg-rose-600 text-white text-[11px] font-extrabold rounded-full shadow-md animate-pulse">
+            -{product.discount_percent}% OFF
+          </span>
+        )}
       </div>
 
       {/* Product Info */}
@@ -51,10 +56,15 @@ export default function ProductCard({ product }) {
         <div>
           {/* Price & Stock */}
           <div className="mt-3 flex items-center justify-between">
-            <div>
+            <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="text-lg font-bold text-slate-900">
                 ₹{product.price?.toLocaleString()}
               </span>
+              {product.discount_percent > 0 && product.original_price > product.price && (
+                <span className="text-xs text-slate-400 line-through font-normal">
+                  ₹{product.original_price?.toLocaleString()}
+                </span>
+              )}
             </div>
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
               product.stock > 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-600 border border-rose-200"

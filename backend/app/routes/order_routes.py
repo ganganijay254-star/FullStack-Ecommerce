@@ -59,7 +59,7 @@ def verify_checkout():
     if not cart or not cart.items:
         return jsonify({"success": False, "message": "Cart is empty; order could not be created."}), 400
     cart_data = cart.to_dict()
-    order = Order(user_id=get_jwt()["id"], razorpay_order_id=razorpay_order_id, razorpay_payment_id=payment_id, total=cart_data["total"])
+    order = Order(user_id=get_jwt()["id"], razorpay_order_id=razorpay_order_id, razorpay_payment_id=payment_id, total=cart_data["total"], status="confirmed")
     db.session.add(order)
     for item in cart.items:
         product = item.product
@@ -68,11 +68,12 @@ def verify_checkout():
             return jsonify({"success": False, "message": f"Insufficient stock for {product.name}."}), 400
         if product.stock is not None:
             product.stock -= item.quantity
-        order.items.append(OrderItem(product_id=product.id, seller_id=product.seller_id, name=product.name, image_url=product.image_url, unit_price=float(product.price), quantity=item.quantity))
+        item_unit_price = float(product.final_price) if hasattr(product, "final_price") else float(product.price)
+        order.items.append(OrderItem(product_id=product.id, seller_id=product.seller_id, name=product.name, image_url=product.image_url, unit_price=item_unit_price, quantity=item.quantity))
     for item in list(cart.items):
         db.session.delete(item)
     db.session.commit()
-    return jsonify({"success": True, "message": "Payment verified and order created.", "data": {"order": order.to_dict()}}), 201
+    return jsonify({"success": True, "message": "Payment verified and order auto-confirmed.", "data": {"order": order.to_dict()}}), 201
 
 
 @order_bp.route("", methods=["GET"])
@@ -193,6 +194,6 @@ def seller_dashboard():
     product_count = Product.query.filter_by(seller_id=seller_id).count()
     low_stock = Product.query.filter(Product.seller_id == seller_id, Product.stock > 0, Product.stock <= 5).count()
     out_of_stock = Product.query.filter(Product.seller_id == seller_id, Product.stock <= 0).count()
-    status_counts = {name: sum(1 for order in orders if order.status == name) for name in ("pending", "delivered", "cancelled", "returned")}
+    status_counts = {name: sum(1 for order in orders if order.status == name) for name in ("pending", "confirmed", "delivered", "cancelled", "returned")}
     top = db.session.query(OrderItem.name, func.sum(OrderItem.quantity).label("sales"), func.sum(OrderItem.unit_price * OrderItem.quantity).label("revenue")).filter(OrderItem.seller_id == seller_id).group_by(OrderItem.name).order_by(func.sum(OrderItem.quantity).desc()).limit(5).all()
-    return jsonify({"success": True, "data": {"total_revenue": float(revenue), "total_orders": len(orders), "pending_orders": status_counts["pending"], "completed_orders": status_counts["delivered"], "cancelled_orders": status_counts["cancelled"], "returned_orders": status_counts["returned"], "total_products": product_count, "low_stock_products": low_stock, "out_of_stock_products": out_of_stock, "recent_orders": [order.to_dict(seller_id=seller_id) for order in orders[:5]], "top_products": [{"name": name, "sales": int(sales), "revenue": float(product_revenue)} for name, sales, product_revenue in top]}})
+    return jsonify({"success": True, "data": {"total_revenue": float(revenue), "total_orders": len(orders), "pending_orders": status_counts["pending"] + status_counts["confirmed"], "confirmed_orders": status_counts["confirmed"], "completed_orders": status_counts["delivered"], "cancelled_orders": status_counts["cancelled"], "returned_orders": status_counts["returned"], "total_products": product_count, "low_stock_products": low_stock, "out_of_stock_products": out_of_stock, "recent_orders": [order.to_dict(seller_id=seller_id) for order in orders[:5]], "top_products": [{"name": name, "sales": int(sales), "revenue": float(product_revenue)} for name, sales, product_revenue in top]}})

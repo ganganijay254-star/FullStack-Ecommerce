@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.extensions import db
 
@@ -11,18 +11,35 @@ class Order(db.Model):
     razorpay_order_id = db.Column(db.String(100), unique=True, nullable=False)
     razorpay_payment_id = db.Column(db.String(100), unique=True, nullable=False)
     total = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(30), nullable=False, default="paid")
+    status = db.Column(db.String(30), nullable=False, default="confirmed")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     user = db.relationship("User", backref=db.backref("orders", lazy="selectin"))
     items = db.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan", lazy="selectin")
 
+    def get_estimated_delivery(self):
+        created = self.created_at or datetime.utcnow()
+        est_min = created + timedelta(days=3)
+        est_max = created + timedelta(days=4)
+        return {
+            "estimated_days": "3 - 4 Days",
+            "min_date": est_min.strftime("%b %d, %Y"),
+            "max_date": est_max.strftime("%b %d, %Y"),
+            "formatted": f"{est_min.strftime('%b %d')} - {est_max.strftime('%b %d, %Y')}"
+        }
+
     def to_dict(self, seller_id=None):
         items = [item.to_dict() for item in self.items if seller_id is None or item.seller_id == seller_id]
         return {
-            "id": self.id, "customer": self.user.full_name, "customer_email": self.user.email,
+            "id": self.id,
+            "customer": self.user.full_name,
+            "customer_email": self.user.email,
             "total": round(sum(item["subtotal"] for item in items), 2) if seller_id else self.total,
-            "status": self.status, "created_at": self.created_at.isoformat(), "items": items,
+            "status": self.status,
+            "auto_confirmed": True,
+            "created_at": self.created_at.isoformat(),
+            "estimated_delivery": self.get_estimated_delivery(),
+            "items": items,
         }
 
 

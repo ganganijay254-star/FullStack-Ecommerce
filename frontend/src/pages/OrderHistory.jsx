@@ -46,10 +46,13 @@ export default function OrderHistory() {
               <article key={order.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-slate-300 transition">
                 <header className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-slate-900 text-base">Order #{order.id}</p>
                       <span className="inline-flex bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase">
-                        {order.status}
+                        {order.status === "confirmed" ? "✓ Confirmed" : order.status}
+                      </span>
+                      <span className="inline-flex bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full text-[11px] font-semibold">
+                        🚚 Est. Delivery: 3-4 Days
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">

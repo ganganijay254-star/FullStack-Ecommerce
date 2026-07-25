@@ -113,9 +113,14 @@ export default function SellerOrders() {
                     </td>
                     <td className="px-4 py-3.5 font-bold font-mono text-slate-900">{money(order.total)}</td>
                     <td className="px-4 py-3.5">
-                      <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold">
-                        PAID
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold w-fit">
+                          PAID
+                        </span>
+                        <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full w-fit">
+                          ⚡ Auto-Confirmed (3-4 Days)
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <select

@@ -17,6 +17,7 @@ export default function SellerMyProducts() {
     description: "",
     category: "",
     price: "",
+    discount_percent: "0",
     stock: "",
     image_url: "",
   });
@@ -47,7 +48,7 @@ export default function SellerMyProducts() {
 
   const openCreateModal = () => {
     setEditingProduct(null);
-    setFormData({ name: "", description: "", category: "", price: "", stock: "", image_url: "" });
+    setFormData({ name: "", description: "", category: "", price: "", discount_percent: "0", stock: "", image_url: "" });
     setFormErrors({});
     setImageFile(null);
     setImagePreview("");
@@ -60,7 +61,8 @@ export default function SellerMyProducts() {
       name: product.name || "",
       description: product.description || "",
       category: product.category || "",
-      price: product.price?.toString() || "",
+      price: product.original_price ? product.original_price.toString() : product.price?.toString() || "",
+      discount_percent: product.discount_percent ? product.discount_percent.toString() : "0",
       stock: product.stock?.toString() || "",
       image_url: product.image_url || "",
     });
@@ -78,30 +80,42 @@ export default function SellerMyProducts() {
   const validateForm = () => {
     const errors = {};
     if (!formData.name.trim()) errors.name = "Product name is required.";
-    if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0)
+    if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
       errors.price = "Valid price is required.";
-    if (formData.stock === "" || isNaN(parseInt(formData.stock)) || parseInt(formData.stock) < 0)
+    }
+    if (formData.stock === "" || isNaN(parseInt(formData.stock)) || parseInt(formData.stock) < 0) {
       errors.stock = "Valid stock is required.";
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    }
+    if (formData.discount_percent && (isNaN(parseFloat(formData.discount_percent)) || parseFloat(formData.discount_percent) < 0 || parseFloat(formData.discount_percent) > 100)) {
+      errors.discount_percent = "Discount percentage must be between 0 and 100.";
+    }
+    return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
 
     setSubmitting(true);
     try {
       let imageUrl = formData.image_url.trim() || undefined;
       if (imageFile) {
-        const upload = await productAPI.uploadImage(imageFile);
-        imageUrl = upload.image_url;
+        toast.loading("Uploading image...", { id: "upload" });
+        const uploadRes = await productAPI.uploadImage(imageFile);
+        imageUrl = uploadRes.data.image_url;
+        toast.dismiss("upload");
       }
+
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         category: formData.category.trim() || undefined,
         price: parseFloat(formData.price),
+        discount_percent: parseFloat(formData.discount_percent || 0),
         stock: parseInt(formData.stock),
         image_url: imageUrl,
       };
@@ -151,7 +165,7 @@ export default function SellerMyProducts() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-800">My Products</h2>
-          <p className="text-sm text-slate-500">Manage your own products</p>
+          <p className="text-sm text-slate-500">Manage your product catalog and discounts</p>
         </div>
         <button
           onClick={openCreateModal}
@@ -192,6 +206,7 @@ export default function SellerMyProducts() {
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Name</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Category</th>
                   <th className="text-right px-4 py-3 font-medium text-slate-600">Price</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">Discount</th>
                   <th className="text-right px-4 py-3 font-medium text-slate-600">Stock</th>
                   <th className="text-center px-4 py-3 font-medium text-slate-600">Active</th>
                   <th className="text-right px-4 py-3 font-medium text-slate-600">Actions</th>
@@ -203,99 +218,72 @@ export default function SellerMyProducts() {
                     <td className="px-4 py-3 text-slate-500">#{product.id}</td>
                     <td className="px-4 py-3 font-medium text-slate-700">{product.name}</td>
                     <td className="px-4 py-3 text-slate-500">{product.category || "-"}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">
-                      &#8377;{product.price?.toFixed(2)}
+                    <td className="px-4 py-3 text-right">
+                      <div className="font-bold text-slate-900">&#8377;{product.price?.toFixed(2)}</div>
+                      {product.discount_percent > 0 && product.original_price > product.price && (
+                        <div className="text-xs text-slate-400 line-through">&#8377;{product.original_price?.toFixed(2)}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {product.discount_percent > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700">
+                          {product.discount_percent}% OFF
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">None</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span
                         className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          product.stock > 0
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
+                          product.stock > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                         }`}
                       >
                         {product.stock}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-block w-2 h-2 rounded-full ${
-                          product.is_active ? "bg-green-500" : "bg-red-500"
+                      <button
+                        onClick={() => toggleActive(product)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer ${
+                          product.is_active
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-slate-100 text-slate-600 border border-slate-200"
                         }`}
-                      />
+                      >
+                        {product.is_active ? "Published" : "Hidden"}
+                      </button>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditModal(product)}
-                          className="px-3 py-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => toggleActive(product)}
-                          className="px-3 py-1 text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition cursor-pointer"
-                        >
-                          {product.is_active ? "Hide" : "Activate"}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product)}
-                          className="px-3 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition cursor-pointer"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                    <td className="px-4 py-3 text-right space-x-2">
+                      <button
+                        onClick={() => openEditModal(product)}
+                        className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product)}
+                        className="text-red-600 hover:text-red-800 font-medium cursor-pointer"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
-          {pagination && pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50">
-              <span className="text-xs text-slate-500">
-                Page {pagination.page} of {pagination.total_pages}
-              </span>
-              <div className="flex gap-1">
-                <button
-                  disabled={!pagination.has_prev}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="px-3 py-1 text-xs border border-slate-300 rounded bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
-                >
-                  Prev
-                </button>
-                <button
-                  disabled={!pagination.has_next}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="px-3 py-1 text-xs border border-slate-300 rounded bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-800">
-                {editingProduct ? "Edit Product" : "Create Product"}
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-xl cursor-pointer"
-              >
-                &times;
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">
+              {editingProduct ? "Edit Product" : "Add Product"}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Name *</label>
                 <input
@@ -309,19 +297,38 @@ export default function SellerMyProducts() {
                 {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Price *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price}
-                  onChange={handleChange("price")}
-                  className={`w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                    formErrors.price ? "border-red-400" : "border-slate-300"
-                  }`}
-                />
-                {formErrors.price && <p className="text-red-500 text-xs mt-1">{formErrors.price}</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Original Price (₹) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price}
+                    onChange={handleChange("price")}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                      formErrors.price ? "border-red-400" : "border-slate-300"
+                    }`}
+                  />
+                  {formErrors.price && <p className="text-red-500 text-xs mt-1">{formErrors.price}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Discount (%)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    value={formData.discount_percent}
+                    onChange={handleChange("discount_percent")}
+                    placeholder="0 to 100"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                      formErrors.discount_percent ? "border-red-400" : "border-slate-300"
+                    }`}
+                  />
+                  {formErrors.discount_percent && <p className="text-red-500 text-xs mt-1">{formErrors.discount_percent}</p>}
+                </div>
               </div>
 
               <div>
@@ -389,11 +396,7 @@ export default function SellerMyProducts() {
                   disabled={submitting}
                   className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition cursor-pointer"
                 >
-                  {submitting
-                    ? "Saving..."
-                    : editingProduct
-                    ? "Update Product"
-                    : "Add Product"}
+                  {submitting ? "Saving..." : editingProduct ? "Update Product" : "Add Product"}
                 </button>
               </div>
             </form>
