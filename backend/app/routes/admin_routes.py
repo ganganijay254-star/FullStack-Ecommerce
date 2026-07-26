@@ -84,6 +84,43 @@ def update_user_status(user_id):
     db.session.commit()
     return jsonify({"success": True, "message": "User status updated.", "data": {"user": user.to_dict()}})
 
+@admin_bp.route("/users/<int:user_id>/role", methods=["PATCH"])
+@role_required("admin")
+def update_user_role(user_id):
+    user = db.session.get(User, user_id)
+    body = request.get_json(silent=True) or {}
+
+    if not user:
+        return jsonify({
+            "success": False,
+            "message": "User not found."
+        }), 404
+
+    if user.id == get_jwt()["id"]:
+        return jsonify({
+            "success": False,
+            "message": "You cannot change your own role."
+        }), 400
+
+    role = body.get("role")
+
+    if role not in ["admin", "seller", "user"]:
+        return jsonify({
+            "success": False,
+            "message": "Invalid role."
+        }), 400
+
+    user.role = role
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "User role updated successfully.",
+        "data": {
+            "user": user.to_dict()
+        }
+    }), 200
 
 @admin_bp.route("/users/<int:user_id>", methods=["DELETE"])
 @role_required("admin")
