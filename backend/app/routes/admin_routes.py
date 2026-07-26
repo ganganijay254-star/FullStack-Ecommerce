@@ -6,7 +6,7 @@ from sqlalchemy import func, or_
 
 from app.extensions import db
 from app.models.cart import Cart
-from app.models.wishlist import Wishlist
+from app.models.wishlist import WishlistItem
 from app.middleware.auth_middleware import role_required
 from app.models.order import Order, OrderItem
 from app.models.user import User
@@ -160,7 +160,7 @@ def delete_user(user_id):
             "message": "User has an active cart."
         }), 409
 
-    if Wishlist.query.filter_by(user_id=user.id).first():
+    if WishlistItem.query.filter_by(user_id=user.id).first():
         return jsonify({
             "success": False,
             "message": "User has wishlist items."
