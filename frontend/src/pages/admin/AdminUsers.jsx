@@ -3,17 +3,11 @@ import toast from "react-hot-toast";
 import { adminAPI, getApiErrorMessage } from "../../services/api";
 
 const money = (value) =>
-  `₹${Number(value || 0).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-  })}`;
-
+  `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 const Skeleton = () => (
   <div className="space-y-3 p-5">
     {Array.from({ length: 7 }, (_, i) => (
-      <div
-        key={i}
-        className="h-12 animate-pulse rounded bg-slate-100"
-      />
+      <div key={i} className="h-12 animate-pulse rounded bg-slate-100" />
     ))}
   </div>
 );
@@ -22,22 +16,17 @@ export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [stats, setStats] = useState(null);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-
   const [selected, setSelected] = useState(null);
   const [deleting, setDeleting] = useState(null);
-
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-
     try {
       const res = await adminAPI.getUsers({
         page,
@@ -46,7 +35,6 @@ export default function AdminUsers() {
         role: role || undefined,
         status: status || undefined,
       });
-
       setUsers(res.data.users);
       setPagination(res.data.pagination);
     } catch (e) {
@@ -55,58 +43,48 @@ export default function AdminUsers() {
       setLoading(false);
     }
   }, [page, search, role, status]);
-
   useEffect(() => {
     const timer = setTimeout(load, 250);
     return () => clearTimeout(timer);
   }, [load]);
-
   useEffect(() => {
     adminAPI
       .getUserStats()
       .then((res) => setStats(res.data))
       .catch(() => {});
   }, []);
-
   const setUserStatus = async (user) => {
     try {
       await adminAPI.updateUserStatus(user.id, !user.is_active);
-
       toast.success(
-        `${user.full_name} is now ${
-          user.is_active ? "inactive" : "active"
-        }.`
+        `${user.full_name} is now ${user.is_active ? "inactive" : "active"}.`,
       );
-
       load();
     } catch (e) {
       toast.error(getApiErrorMessage(e));
     }
   };
-
   const updateUserRole = async (userId, role) => {
   try {
     await adminAPI.updateUserRole(userId, role);
+
     toast.success("User role updated successfully.");
+
     load();
   } catch (e) {
     toast.error(getApiErrorMessage(e));
   }
 };
-
   const remove = async () => {
     try {
       await adminAPI.deleteUser(deleting.id);
-
       toast.success("User deleted.");
-
       setDeleting(null);
       load();
     } catch (e) {
       toast.error(getApiErrorMessage(e));
     }
   };
-
   const cards = [
     ["Total users", stats?.total_users],
     ["Active users", stats?.active_users],
@@ -114,46 +92,32 @@ export default function AdminUsers() {
     ["Customers", stats?.customers],
     ["New this month", stats?.new_users_this_month],
   ];
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <p className="text-xs font-bold tracking-widest text-blue-600 uppercase">
           Account administration
         </p>
-
-        <h2 className="mt-1 text-3xl font-bold text-slate-900">
-          Users
-        </h2>
-
+        <h2 className="mt-1 text-3xl font-bold text-slate-900">Users</h2>
         <p className="mt-2 text-slate-500">
           Review accounts, access, and customer activity.
         </p>
       </div>
-
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         {cards.map(([label, value]) => (
           <div
             key={label}
             className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
           >
-            <p className="text-xs font-medium text-slate-500">
-              {label}
-            </p>
-
+            <p className="text-xs font-medium text-slate-500">{label}</p>
             <p className="mt-2 text-2xl font-bold text-slate-900">
               {stats ? value : "—"}
             </p>
           </div>
         ))}
       </div>
-
-      {/* Filters */}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row">
-
           <input
             value={search}
             onChange={(e) => {
@@ -163,7 +127,6 @@ export default function AdminUsers() {
             placeholder="Search name or email…"
             className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
           />
-
           <select
             value={role}
             onChange={(e) => {
@@ -177,7 +140,6 @@ export default function AdminUsers() {
             <option value="seller">Seller</option>
             <option value="user">Customer</option>
           </select>
-
           <select
             value={status}
             onChange={(e) => {
@@ -190,16 +152,12 @@ export default function AdminUsers() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
-
         </div>
-
-        {/* Table */}
         {loading ? (
           <Skeleton />
         ) : error ? (
           <div className="p-12 text-center">
             <p className="text-red-600">{error}</p>
-
             <button
               onClick={load}
               className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white"
@@ -213,18 +171,99 @@ export default function AdminUsers() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            {/* Table continues exactly same */}
+            <table className="w-full min-w-[900px] text-sm">
+              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  {[
+                    "User",
+                    "Role",
+                    "Status",
+                    "Joined",
+                    "Orders",
+                    "Spending",
+                    "Actions",
+                  ].map((head) => (
+                    <th key={head} className="px-4 py-3 font-semibold">
+                      {head}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50/80">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 font-bold text-blue-700">
+                          {user.full_name?.[0]}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-800">
+                            {user.full_name}
+                          </p>
+                          <p className="text-xs text-slate-500">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                          value={user.role}
+                          onChange={(e) => updateUserRole(user.id, e.target.value)}
+                          className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="seller">Seller</option>
+                        <option value="user">Customer</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${user.is_active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
+                      >
+                        {user.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {new Date(user.created_at).toLocaleDateString("en-IN")}
+                    </td>
+                    <td className="px-4 py-3">{user.total_orders}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {money(user.total_spending)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelected(user)}
+                          className="text-blue-600 hover:underline"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => setUserStatus(user)}
+                          className="text-amber-600 hover:underline"
+                        >
+                          {user.is_active ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          onClick={() => setDeleting(user)}
+                          className="text-red-600 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-
-        {/* Pagination */}
         {pagination && (
           <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
             <span>
               {pagination.total} users · Page {pagination.page} of{" "}
               {pagination.total_pages}
             </span>
-
             <div className="flex gap-2">
               <button
                 disabled={!pagination.has_prev}
@@ -233,7 +272,6 @@ export default function AdminUsers() {
               >
                 Previous
               </button>
-
               <button
                 disabled={!pagination.has_next}
                 onClick={() => setPage((p) => p + 1)}
@@ -245,6 +283,59 @@ export default function AdminUsers() {
           </div>
         )}
       </section>
+      {(selected || deleting) && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            {selected ? (
+              <>
+                <h3 className="text-xl font-bold">{selected.full_name}</h3>
+                <dl className="mt-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt>Email</dt>
+                    <dd>{selected.email}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>Orders</dt>
+                    <dd>{selected.total_orders}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>Total spending</dt>
+                    <dd>{money(selected.total_spending)}</dd>
+                  </div>
+                </dl>
+                <button
+                  onClick={() => setSelected(null)}
+                  className="mt-6 rounded-lg bg-slate-900 px-4 py-2 text-white"
+                >
+                  Close
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-bold">Delete user?</h3>
+                <p className="mt-2 text-slate-500">
+                  This permanently removes {deleting.full_name}. This action
+                  cannot be undone.
+                </p>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    onClick={() => setDeleting(null)}
+                    className="rounded-lg border px-4 py-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={remove}
+                    className="rounded-lg bg-red-600 px-4 py-2 text-white"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
