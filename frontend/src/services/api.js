@@ -71,12 +71,13 @@ export const productAPI = {
     api.delete(`/api/products/${id}`).then((res) => res.data),
 
   uploadImage: (file) => {
-    const data = new FormData();
-    data.append("image", file);
-    return api.post("/api/products/images", data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    }).then((res) => res.data);
-  },
+  const data = new FormData();
+  data.append("image", file);
+
+  return api.post("/api/products/images", data, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+},
 
   getMyProducts: (params = {}) =>
     api.get("/api/products/seller/me", { params }).then((res) => res.data),
