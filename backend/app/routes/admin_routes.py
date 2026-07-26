@@ -5,6 +5,8 @@ from flask_jwt_extended import get_jwt
 from sqlalchemy import func, or_
 
 from app.extensions import db
+from app.models.cart import Cart
+from app.models.wishlist import Wishlist
 from app.middleware.auth_middleware import role_required
 from app.models.order import Order, OrderItem
 from app.models.user import User
@@ -126,16 +128,51 @@ def update_user_role(user_id):
 @role_required("admin")
 def delete_user(user_id):
     user = db.session.get(User, user_id)
+
     if not user:
-        return jsonify({"success": False, "message": "User not found."}), 404
+        return jsonify({
+            "success": False,
+            "message": "User not found."
+        }), 404
+
     if user.id == get_jwt()["id"]:
-        return jsonify({"success": False, "message": "You cannot delete your own account."}), 400
-    if user.orders or user.products:
-        return jsonify({"success": False, "message": "Users with orders or products cannot be deleted; deactivate them instead."}), 409
+        return jsonify({
+            "success": False,
+            "message": "You cannot delete your own account."
+        }), 400
+
+    if user.orders:
+        return jsonify({
+            "success": False,
+            "message": "User has orders. Deactivate instead."
+        }), 409
+
+    if user.products:
+        return jsonify({
+            "success": False,
+            "message": "Seller has products. Deactivate instead."
+        }), 409
+
+    cart = Cart.query.filter_by(user_id=user.id).first()
+    if cart:
+        return jsonify({
+            "success": False,
+            "message": "User has an active cart."
+        }), 409
+
+    if Wishlist.query.filter_by(user_id=user.id).first():
+        return jsonify({
+            "success": False,
+            "message": "User has wishlist items."
+        }), 409
+
     db.session.delete(user)
     db.session.commit()
-    return jsonify({"success": True, "message": "User deleted."})
 
+    return jsonify({
+        "success": True,
+        "message": "User deleted successfully."
+    })
 
 @admin_bp.route("/export/users", methods=["GET"])
 @role_required("admin")
