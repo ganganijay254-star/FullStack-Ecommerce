@@ -141,10 +141,13 @@ export const adminAPI = {
   getUsers: (params = {}) => api.get("/api/admin/users", { params }).then((res) => res.data),
   getUser: (id) => api.get(`/api/admin/users/${id}`).then((res) => res.data),
   getUserStats: () => api.get("/api/admin/users/stats").then((res) => res.data),
-  updateUserStatus: (id, is_active) => api.patch(`/api/admin/users/${id}/status`, { is_active }).then((res) => res.data),
+  updateUserStatus: (id, is_active) =>api.patch(`/api/admin/users/${id}/status`, { is_active }).then((res) => res.data),
+  updateUserRole: (id, role) =>api.patch(`/api/admin/users/${id}/role`, { role }).then((res) => res.data),
   deleteUser: (id) => api.delete(`/api/admin/users/${id}`).then((res) => res.data),
   exportUsers: () => api.get("/api/admin/export/users").then((res) => res.data),
   exportOrders: () => api.get("/api/admin/export/orders").then((res) => res.data),
 };
+
+
 
 export default api;
