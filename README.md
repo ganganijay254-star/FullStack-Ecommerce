@@ -46,18 +46,4 @@ Password:Admin@123
 
 
 
-🌐 Live Demo
 
-Frontend:
-
-
-Backend:
-
-
-📷 Screenshots
-
-Home
-Admin
-Seller Dashboard
-Cart
-Checkout
