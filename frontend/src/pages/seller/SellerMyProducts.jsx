@@ -30,29 +30,31 @@ export default function SellerMyProducts() {
   const [imagePreview, setImagePreview] = useState("");
 
   // =========================================================
-  // LOCK PAGE SCROLL WHEN MODAL IS OPEN
-  // IMPORTANT:
-  // Do NOT disable touch-action on body.
-  // Mobile modal needs touch scrolling.
+  // LOCK BACKGROUND PAGE WHEN MODAL IS OPEN
   // =========================================================
   useEffect(() => {
-  if (!showModal) return;
+    if (!showModal) return;
 
-  const originalOverflow = document.body.style.overflow;
-  const originalOverscrollBehavior = document.body.style.overscrollBehavior;
+    const body = document.body;
+    const html = document.documentElement;
 
-  // Background page ko lock rakho
-  document.body.style.overflow = "hidden";
-  document.body.style.overscrollBehavior = "none";
+    const originalBodyOverflow = body.style.overflow;
+    const originalBodyTouchAction = body.style.touchAction;
+    const originalHtmlOverflow = html.style.overflow;
 
-  return () => {
-    document.body.style.overflow = originalOverflow;
-    document.body.style.overscrollBehavior = originalOverscrollBehavior;
-  };
-}, [showModal]);
+    body.style.overflow = "hidden";
+    body.style.touchAction = "none";
+    html.style.overflow = "hidden";
+
+    return () => {
+      body.style.overflow = originalBodyOverflow;
+      body.style.touchAction = originalBodyTouchAction;
+      html.style.overflow = originalHtmlOverflow;
+    };
+  }, [showModal]);
 
   // =========================================================
-  // FETCH PRODUCTS
+  // FETCH SELLER PRODUCTS
   // =========================================================
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -73,6 +75,7 @@ export default function SellerMyProducts() {
       setPagination(res.data.pagination || null);
     } catch (err) {
       console.error("Failed to fetch products:", err);
+
       toast.error(
         err.response?.data?.message ||
           "Failed to load your products"
@@ -192,11 +195,9 @@ export default function SellerMyProducts() {
 
     if (
       formData.discount_percent &&
-      (
-        isNaN(parseFloat(formData.discount_percent)) ||
+      (isNaN(parseFloat(formData.discount_percent)) ||
         parseFloat(formData.discount_percent) < 0 ||
-        parseFloat(formData.discount_percent) > 100
-      )
+        parseFloat(formData.discount_percent) > 100)
     ) {
       errors.discount_percent =
         "Discount percentage must be between 0 and 100.";
@@ -355,29 +356,21 @@ export default function SellerMyProducts() {
   }, [showModal, submitting]);
 
   // =========================================================
-  // MODAL
+  // ADD / EDIT PRODUCT MODAL
   // =========================================================
   const productModal =
     showModal && typeof document !== "undefined"
       ? createPortal(
           <div
-           className="
-             fixed
-             inset-0
-             z-[100]
-             w-screen
-             h-[100dvh]
-             bg-black/50
-             flex
-             items-center
-             justify-center
-             p-0
-             sm:p-4
-             overscroll-none
-           "
-            style={{
-              WebkitOverflowScrolling: "touch",
-            }}
+            className="
+              fixed
+              inset-0
+              z-[9999]
+              w-screen
+              h-[100dvh]
+              bg-black/50
+              overflow-hidden
+            "
             onMouseDown={(e) => {
               if (
                 e.target === e.currentTarget &&
@@ -387,19 +380,30 @@ export default function SellerMyProducts() {
               }
             }}
           >
+            {/* =================================================
+                MOBILE/DESKTOP MODAL
+            ================================================== */}
             <div
               className="
-                relative
-                mx-auto
+                absolute
+                inset-0
+
                 w-full
-                min-h-[100dvh]
+                h-[100dvh]
+
                 bg-white
+
                 flex
                 flex-col
+
                 overflow-hidden
 
-                sm:min-h-0
-                sm:max-h-[calc(100dvh-2rem)]
+                sm:relative
+                sm:inset-auto
+                sm:mx-auto
+                sm:mt-[5vh]
+                sm:h-[90dvh]
+                sm:max-h-[90dvh]
                 sm:max-w-xl
                 sm:rounded-2xl
                 sm:shadow-2xl
@@ -414,27 +418,33 @@ export default function SellerMyProducts() {
               <div
                 className="
                   shrink-0
+                  w-full
+
                   flex
                   items-center
                   justify-between
                   gap-3
+
                   px-4
                   py-4
+
                   sm:px-6
                   sm:py-5
+
                   border-b
                   border-slate-200
+
                   bg-white
                 "
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h3 className="text-lg sm:text-xl font-bold text-slate-800 truncate">
                     {editingProduct
                       ? "Edit Product"
                       : "Add Product"}
                   </h3>
 
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-400 mt-1 truncate">
                     {editingProduct
                       ? "Update your product details"
                       : "Add a new product to your store"}
@@ -447,56 +457,84 @@ export default function SellerMyProducts() {
                   disabled={submitting}
                   className="
                     shrink-0
-                    w-9
-                    h-9
+
+                    w-10
+                    h-10
+
                     flex
                     items-center
                     justify-center
+
                     rounded-full
+
                     text-slate-500
+
                     hover:bg-slate-100
                     hover:text-slate-900
+
+                    active:bg-slate-200
+
                     transition
+
                     cursor-pointer
+
                     disabled:opacity-50
                     disabled:cursor-not-allowed
                   "
                   aria-label="Close modal"
                 >
-                  <span className="text-xl leading-none">
-                    ✕
+                  <span className="text-2xl leading-none">
+                    ×
                   </span>
                 </button>
               </div>
 
               {/* =================================================
-                  SCROLLABLE FORM AREA
+                  IMPORTANT:
+                  DEDICATED MOBILE SCROLL AREA
               ================================================== */}
               <div
                 className="
                   flex-1
                   min-h-0
-                  overflow-y-auto
+                  min-w-0
+
+                  w-full
+
+                  overflow-y-scroll
                   overflow-x-hidden
+
                   overscroll-contain
+
                   px-4
                   py-5
+
                   sm:px-6
                   sm:py-6
+
+                  bg-white
                 "
                 style={{
                   WebkitOverflowScrolling: "touch",
                   touchAction: "pan-y",
+                  overscrollBehaviorY: "contain",
                 }}
               >
                 <form
                   onSubmit={handleSubmit}
-                  className="space-y-5 pb-6"
+                  className="
+                    w-full
+                    min-w-0
+
+                    space-y-5
+
+                    pb-10
+                  "
                 >
                   {/* =================================================
                       PRODUCT NAME
                   ================================================== */}
-                  <div className="min-w-0">
+                  <div className="w-full min-w-0">
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                       Product Name *
                     </label>
@@ -511,16 +549,23 @@ export default function SellerMyProducts() {
                         w-full
                         min-w-0
                         box-border
+
                         px-3.5
                         py-3
+
                         border
                         rounded-xl
+
                         text-sm
+
                         outline-none
                         bg-white
+
                         transition
+
                         focus:ring-2
                         focus:ring-blue-500/20
+
                         ${
                           formErrors.name
                             ? "border-red-400"
@@ -540,7 +585,7 @@ export default function SellerMyProducts() {
                       PRICE + DISCOUNT
                   ================================================== */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="min-w-0">
+                    <div className="w-full min-w-0">
                       <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                         Original Price (₹) *
                       </label>
@@ -558,16 +603,23 @@ export default function SellerMyProducts() {
                           w-full
                           min-w-0
                           box-border
+
                           px-3.5
                           py-3
+
                           border
                           rounded-xl
+
                           text-sm
+
                           outline-none
                           bg-white
+
                           transition
+
                           focus:ring-2
                           focus:ring-blue-500/20
+
                           ${
                             formErrors.price
                               ? "border-red-400"
@@ -583,7 +635,7 @@ export default function SellerMyProducts() {
                       )}
                     </div>
 
-                    <div className="min-w-0">
+                    <div className="w-full min-w-0">
                       <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                         Discount (%)
                       </label>
@@ -604,16 +656,23 @@ export default function SellerMyProducts() {
                           w-full
                           min-w-0
                           box-border
+
                           px-3.5
                           py-3
+
                           border
                           rounded-xl
+
                           text-sm
+
                           outline-none
                           bg-white
+
                           transition
+
                           focus:ring-2
                           focus:ring-blue-500/20
+
                           ${
                             formErrors.discount_percent
                               ? "border-red-400"
@@ -633,7 +692,7 @@ export default function SellerMyProducts() {
                   {/* =================================================
                       STOCK
                   ================================================== */}
-                  <div className="min-w-0">
+                  <div className="w-full min-w-0">
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                       Stock *
                     </label>
@@ -650,16 +709,23 @@ export default function SellerMyProducts() {
                         w-full
                         min-w-0
                         box-border
+
                         px-3.5
                         py-3
+
                         border
                         rounded-xl
+
                         text-sm
+
                         outline-none
                         bg-white
+
                         transition
+
                         focus:ring-2
                         focus:ring-blue-500/20
+
                         ${
                           formErrors.stock
                             ? "border-red-400"
@@ -678,7 +744,7 @@ export default function SellerMyProducts() {
                   {/* =================================================
                       CATEGORY
                   ================================================== */}
-                  <div className="min-w-0">
+                  <div className="w-full min-w-0">
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                       Category
                     </label>
@@ -693,15 +759,22 @@ export default function SellerMyProducts() {
                         w-full
                         min-w-0
                         box-border
+
                         px-3.5
                         py-3
+
                         border
                         border-slate-300
+
                         rounded-xl
+
                         text-sm
+
                         outline-none
                         bg-white
+
                         transition
+
                         focus:ring-2
                         focus:ring-blue-500/20
                       "
@@ -711,7 +784,7 @@ export default function SellerMyProducts() {
                   {/* =================================================
                       DESCRIPTION
                   ================================================== */}
-                  <div className="min-w-0">
+                  <div className="w-full min-w-0">
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                       Description
                     </label>
@@ -719,24 +792,33 @@ export default function SellerMyProducts() {
                     <textarea
                       value={formData.description}
                       onChange={handleChange("description")}
-                      rows={5}
+                      rows={6}
                       placeholder="Describe your product..."
                       className="
                         block
                         w-full
                         min-w-0
                         box-border
+
                         px-3.5
                         py-3
+
                         border
                         border-slate-300
+
                         rounded-xl
+
                         text-sm
+
                         outline-none
                         bg-white
+
                         transition
+
                         resize-y
-                        min-h-[120px]
+
+                        min-h-[140px]
+
                         focus:ring-2
                         focus:ring-blue-500/20
                       "
@@ -746,7 +828,7 @@ export default function SellerMyProducts() {
                   {/* =================================================
                       IMAGE
                   ================================================== */}
-                  <div className="min-w-0">
+                  <div className="w-full min-w-0">
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                       Product Image
                     </label>
@@ -776,15 +858,21 @@ export default function SellerMyProducts() {
                         w-full
                         min-w-0
                         box-border
+
                         px-3
                         py-3
+
                         border
                         border-slate-300
+
                         rounded-xl
+
                         text-xs
                         sm:text-sm
+
                         outline-none
                         bg-white
+
                         focus:ring-2
                         focus:ring-blue-500/20
                       "
@@ -809,8 +897,11 @@ export default function SellerMyProducts() {
                           className="
                             h-24
                             w-24
+
                             rounded-xl
+
                             object-cover
+
                             border
                             border-slate-200
                           "
@@ -827,10 +918,13 @@ export default function SellerMyProducts() {
                       flex
                       flex-col-reverse
                       sm:flex-row
+
                       sm:justify-end
+
                       gap-3
+
                       pt-2
-                      pb-2
+                      pb-4
                     "
                   >
                     <button
@@ -840,19 +934,31 @@ export default function SellerMyProducts() {
                       className="
                         w-full
                         sm:w-auto
+
                         px-5
                         py-3
+
                         text-sm
+
                         border
                         border-slate-300
+
                         rounded-xl
+
                         text-slate-700
                         bg-white
+
                         hover:bg-slate-50
+                        active:bg-slate-100
+
                         transition
+
                         font-semibold
+
                         cursor-pointer
+
                         disabled:opacity-50
+                        disabled:cursor-not-allowed
                       "
                     >
                       Cancel
@@ -864,17 +970,28 @@ export default function SellerMyProducts() {
                       className="
                         w-full
                         sm:w-auto
+
                         px-5
                         py-3
+
                         text-sm
+
                         bg-blue-600
                         hover:bg-blue-700
+                        active:bg-blue-800
+
                         disabled:bg-blue-400
+
                         text-white
+
                         rounded-xl
+
                         font-semibold
+
                         transition
+
                         cursor-pointer
+
                         disabled:cursor-not-allowed
                       "
                     >
@@ -919,15 +1036,22 @@ export default function SellerMyProducts() {
               w-full
               sm:w-auto
               shrink-0
+
               px-4
               py-2.5
+
               bg-blue-600
               hover:bg-blue-700
+
               text-white
               text-sm
+
               rounded-xl
+
               font-semibold
+
               transition
+
               cursor-pointer
             "
           >
@@ -950,15 +1074,22 @@ export default function SellerMyProducts() {
             className="
               w-full
               sm:max-w-sm
+
               px-4
               py-2.5
+
               border
               border-slate-300
+
               rounded-xl
+
               text-sm
+
               outline-none
+
               focus:ring-2
               focus:ring-blue-500/40
+
               bg-white
             "
           />
@@ -1120,11 +1251,75 @@ export default function SellerMyProducts() {
             </div>
           </div>
         )}
+
+        {/* =====================================================
+            PAGINATION
+        ====================================================== */}
+        {pagination && (
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <span className="text-slate-500">
+              {pagination.total || 0} products found
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={!pagination.has_prev}
+                onClick={() =>
+                  setPage((current) => Math.max(1, current - 1))
+                }
+                className="
+                  rounded-xl
+                  border
+                  border-slate-200
+                  px-3
+                  py-1.5
+
+                  text-xs
+                  font-semibold
+
+                  disabled:opacity-40
+                  hover:bg-slate-50
+
+                  cursor-pointer
+                  disabled:cursor-not-allowed
+                "
+              >
+                Previous
+              </button>
+
+              <span className="px-2 font-semibold text-slate-600">
+                Page {pagination.page || page}
+              </span>
+
+              <button
+                disabled={!pagination.has_next}
+                onClick={() =>
+                  setPage((current) => current + 1)
+                }
+                className="
+                  rounded-xl
+                  border
+                  border-slate-200
+                  px-3
+                  py-1.5
+
+                  text-xs
+                  font-semibold
+
+                  disabled:opacity-40
+                  hover:bg-slate-50
+
+                  cursor-pointer
+                  disabled:cursor-not-allowed
+                "
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* =====================================================
-          ADD / EDIT PRODUCT MODAL
-      ====================================================== */}
       {productModal}
     </>
   );
