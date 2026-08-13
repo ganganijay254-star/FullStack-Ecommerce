@@ -28,6 +28,27 @@ export default function SellerMyProducts() {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
 
+  // =========================================================
+  // LOCK BODY SCROLL WHEN MODAL IS OPEN
+  // =========================================================
+  useEffect(() => {
+    if (!showModal) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+    };
+  }, [showModal]);
+
+  // =========================================================
+  // FETCH PRODUCTS
+  // =========================================================
   const fetchProducts = useCallback(async () => {
     setLoading(true);
 
@@ -57,6 +78,9 @@ export default function SellerMyProducts() {
     fetchProducts();
   }, [fetchProducts]);
 
+  // =========================================================
+  // CREATE MODAL
+  // =========================================================
   const openCreateModal = () => {
     setEditingProduct(null);
 
@@ -76,6 +100,9 @@ export default function SellerMyProducts() {
     setShowModal(true);
   };
 
+  // =========================================================
+  // EDIT MODAL
+  // =========================================================
   const openEditModal = (product) => {
     setEditingProduct(product);
 
@@ -99,6 +126,22 @@ export default function SellerMyProducts() {
     setShowModal(true);
   };
 
+  // =========================================================
+  // CLOSE MODAL
+  // =========================================================
+  const closeModal = () => {
+    if (submitting) return;
+
+    setShowModal(false);
+    setEditingProduct(null);
+    setFormErrors({});
+    setImageFile(null);
+    setImagePreview("");
+  };
+
+  // =========================================================
+  // HANDLE INPUT
+  // =========================================================
   const handleChange = (field) => (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -113,6 +156,9 @@ export default function SellerMyProducts() {
     }
   };
 
+  // =========================================================
+  // VALIDATION
+  // =========================================================
   const validateForm = () => {
     const errors = {};
 
@@ -138,9 +184,11 @@ export default function SellerMyProducts() {
 
     if (
       formData.discount_percent &&
-      (isNaN(parseFloat(formData.discount_percent)) ||
+      (
+        isNaN(parseFloat(formData.discount_percent)) ||
         parseFloat(formData.discount_percent) < 0 ||
-        parseFloat(formData.discount_percent) > 100)
+        parseFloat(formData.discount_percent) > 100
+      )
     ) {
       errors.discount_percent =
         "Discount percentage must be between 0 and 100.";
@@ -149,6 +197,9 @@ export default function SellerMyProducts() {
     return errors;
   };
 
+  // =========================================================
+  // SUBMIT
+  // =========================================================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -181,13 +232,18 @@ export default function SellerMyProducts() {
         description: formData.description.trim() || undefined,
         category: formData.category.trim() || undefined,
         price: parseFloat(formData.price),
-        discount_percent: parseFloat(formData.discount_percent || 0),
+        discount_percent: parseFloat(
+          formData.discount_percent || 0
+        ),
         stock: parseInt(formData.stock),
         image_url: imageUrl,
       };
 
       if (editingProduct) {
-        await productAPI.updateProduct(editingProduct.id, payload);
+        await productAPI.updateProduct(
+          editingProduct.id,
+          payload
+        );
 
         toast.success("Product updated successfully!");
       } else {
@@ -197,8 +253,11 @@ export default function SellerMyProducts() {
       }
 
       setShowModal(false);
+      setEditingProduct(null);
       fetchProducts();
     } catch (err) {
+      console.error("Product operation failed:", err);
+
       const msg =
         err.response?.data?.message ||
         "Operation failed.";
@@ -213,6 +272,9 @@ export default function SellerMyProducts() {
     }
   };
 
+  // =========================================================
+  // DELETE
+  // =========================================================
   const handleDelete = async (product) => {
     if (
       !window.confirm(
@@ -236,6 +298,9 @@ export default function SellerMyProducts() {
     }
   };
 
+  // =========================================================
+  // TOGGLE ACTIVE
+  // =========================================================
   const toggleActive = async (product) => {
     try {
       await productAPI.toggleActive(
@@ -258,25 +323,60 @@ export default function SellerMyProducts() {
     }
   };
 
+  // =========================================================
+  // ESCAPE KEY
+  // =========================================================
+  useEffect(() => {
+    if (!showModal) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !submitting) {
+        closeModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showModal, submitting]);
+
   return (
-    <div className="w-full min-w-0 overflow-x-hidden">
+    <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+
       {/* =====================================================
           PAGE HEADER
       ====================================================== */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+
         <div className="min-w-0">
-          <h2 className="text-xl font-bold text-slate-800 sm:text-2xl">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-800">
             My Products
           </h2>
 
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Manage your product catalog and discounts
           </p>
         </div>
 
         <button
           onClick={openCreateModal}
-          className="w-full shrink-0 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer sm:w-auto"
+          className="
+            w-full
+            sm:w-auto
+            shrink-0
+            px-4
+            py-2.5
+            bg-blue-600
+            hover:bg-blue-700
+            text-white
+            text-sm
+            rounded-xl
+            font-semibold
+            transition
+            cursor-pointer
+          "
         >
           + Add Product
         </button>
@@ -294,7 +394,20 @@ export default function SellerMyProducts() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 sm:max-w-sm"
+          className="
+            w-full
+            sm:max-w-sm
+            px-4
+            py-2.5
+            border
+            border-slate-300
+            rounded-xl
+            text-sm
+            outline-none
+            focus:ring-2
+            focus:ring-blue-500/40
+            bg-white
+          "
         />
       </div>
 
@@ -303,58 +416,64 @@ export default function SellerMyProducts() {
       ====================================================== */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : products.length === 0 ? (
-        <div className="py-12 text-center text-sm text-slate-400">
+        <div className="text-center py-12 text-slate-400 text-sm">
           No products yet. Start by adding one!
         </div>
       ) : (
-        <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="w-full bg-white rounded-xl border border-slate-200 overflow-hidden">
+
           <div className="w-full overflow-x-auto">
             <table className="min-w-[900px] w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50">
+
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">
+
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">
                     ID
                   </th>
 
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">
                     Name
                   </th>
 
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">
                     Category
                   </th>
 
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">
+                  <th className="text-right px-4 py-3 font-medium text-slate-600">
                     Price
                   </th>
 
-                  <th className="px-4 py-3 text-center font-medium text-slate-600">
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">
                     Discount
                   </th>
 
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">
+                  <th className="text-right px-4 py-3 font-medium text-slate-600">
                     Stock
                   </th>
 
-                  <th className="px-4 py-3 text-center font-medium text-slate-600">
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">
                     Active
                   </th>
 
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">
+                  <th className="text-right px-4 py-3 font-medium text-slate-600">
                     Actions
                   </th>
+
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
+
                 {products.map((product) => (
                   <tr
                     key={product.id}
                     className="hover:bg-slate-50"
                   >
+
                     <td className="px-4 py-3 text-slate-500">
                       #{product.id}
                     </td>
@@ -369,23 +488,22 @@ export default function SellerMyProducts() {
 
                     <td className="px-4 py-3 text-right">
                       <div className="font-bold text-slate-900">
-                        &#8377;
-                        {product.price?.toFixed(2)}
+                        ₹{product.price?.toFixed(2)}
                       </div>
 
                       {product.discount_percent > 0 &&
                         product.original_price >
                           product.price && (
                           <div className="text-xs text-slate-400 line-through">
-                            &#8377;
-                            {product.original_price?.toFixed(2)}
+                            ₹{product.original_price?.toFixed(2)}
                           </div>
                         )}
                     </td>
 
                     <td className="px-4 py-3 text-center">
+
                       {product.discount_percent > 0 ? (
-                        <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700">
                           {product.discount_percent}% OFF
                         </span>
                       ) : (
@@ -393,11 +511,13 @@ export default function SellerMyProducts() {
                           None
                         </span>
                       )}
+
                     </td>
 
                     <td className="px-4 py-3 text-right">
+
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                           product.stock > 0
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-700"
@@ -405,31 +525,35 @@ export default function SellerMyProducts() {
                       >
                         {product.stock}
                       </span>
+
                     </td>
 
                     <td className="px-4 py-3 text-center">
+
                       <button
                         onClick={() =>
                           toggleActive(product)
                         }
-                        className={`cursor-pointer rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer ${
                           product.is_active
-                            ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border border-slate-200 bg-slate-100 text-slate-600"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-slate-100 text-slate-600 border border-slate-200"
                         }`}
                       >
                         {product.is_active
                           ? "Published"
                           : "Hidden"}
                       </button>
+
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+
                       <button
                         onClick={() =>
                           openEditModal(product)
                         }
-                        className="mr-3 cursor-pointer font-medium text-blue-600 hover:text-blue-800"
+                        className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer mr-3"
                       >
                         Edit
                       </button>
@@ -438,13 +562,16 @@ export default function SellerMyProducts() {
                         onClick={() =>
                           handleDelete(product)
                         }
-                        className="cursor-pointer font-medium text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 font-medium cursor-pointer"
                       >
                         Delete
                       </button>
+
                     </td>
+
                   </tr>
                 ))}
+
               </tbody>
             </table>
           </div>
@@ -452,150 +579,206 @@ export default function SellerMyProducts() {
       )}
 
       {/* =====================================================
-          CREATE / EDIT MODAL
+          CREATE / EDIT PRODUCT MODAL
+          MOBILE FULL SCREEN + INTERNAL SCROLL
       ====================================================== */}
+
       {showModal && (
         <div
           className="
             fixed
             inset-0
             z-[100]
-            flex
-            items-start
-            justify-center
-            overflow-y-auto
-            overscroll-contain
+            w-screen
+            h-[100dvh]
             bg-black/50
-            p-2
-            sm:items-center
+            flex
+            items-center
+            justify-center
+            p-0
             sm:p-4
           "
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowModal(false);
+            if (
+              e.target === e.currentTarget &&
+              !submitting
+            ) {
+              closeModal();
             }
           }}
         >
+
           {/* =================================================
               MODAL CONTAINER
           ================================================== */}
+
           <div
             className="
-              my-2
-              flex
+              relative
               w-full
-              max-w-lg
-              flex-col
-              overflow-hidden
-              rounded-xl
+              h-full
+              max-w-none
+              max-h-none
               bg-white
+              rounded-none
               shadow-2xl
-              sm:my-4
+              overflow-hidden
+              flex
+              flex-col
+
+              sm:h-auto
+              sm:max-h-[90dvh]
               sm:max-w-xl
               sm:rounded-2xl
-
-              max-h-[calc(100dvh-1rem)]
-              sm:max-h-[calc(100dvh-2rem)]
             "
-            onMouseDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+            }}
           >
+
             {/* =================================================
                 MODAL HEADER
             ================================================== */}
+
             <div
               className="
-                flex
                 shrink-0
+                flex
                 items-center
                 justify-between
                 gap-3
-                border-b
-                border-slate-200
-                bg-white
-                px-4
-                py-4
-                sm:px-6
-              "
-            >
-              <h3 className="min-w-0 truncate text-base font-bold text-slate-800 sm:text-lg">
-                {editingProduct
-                  ? "Edit Product"
-                  : "Add Product"}
-              </h3>
-
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="
-                  flex
-                  h-8
-                  w-8
-                  shrink-0
-                  cursor-pointer
-                  items-center
-                  justify-center
-                  rounded-lg
-                  text-slate-500
-                  transition
-                  hover:bg-slate-100
-                  hover:text-slate-800
-                "
-                aria-label="Close modal"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* =================================================
-                MODAL BODY
-                IMPORTANT:
-                min-h-0 + flex-1 + overflow-y-auto
-                makes only this section scroll.
-            ================================================== */}
-            <div
-              className="
-                min-h-0
-                flex-1
-                overflow-y-auto
-                overscroll-contain
                 px-4
                 py-4
                 sm:px-6
                 sm:py-5
+                border-b
+                border-slate-200
+                bg-white
               "
             >
+
+              <div className="min-w-0">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-800 truncate">
+                  {editingProduct
+                    ? "Edit Product"
+                    : "Add Product"}
+                </h3>
+
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {editingProduct
+                    ? "Update your product details"
+                    : "Add a new product to your store"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={submitting}
+                className="
+                  shrink-0
+                  w-9
+                  h-9
+                  flex
+                  items-center
+                  justify-center
+                  rounded-full
+                  text-slate-500
+                  hover:bg-slate-100
+                  hover:text-slate-900
+                  transition
+                  cursor-pointer
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
+                "
+                aria-label="Close modal"
+              >
+                <span className="text-xl leading-none">
+                  ✕
+                </span>
+              </button>
+
+            </div>
+
+            {/* =================================================
+                SCROLLABLE MODAL BODY
+            ================================================== */}
+
+            <div
+              className="
+                flex-1
+                min-h-0
+                overflow-y-auto
+                overflow-x-hidden
+                overscroll-contain
+                touch-pan-y
+                px-4
+                py-5
+                sm:px-6
+                sm:py-6
+              "
+            >
+
               <form
                 onSubmit={handleSubmit}
-                className="space-y-4"
+                className="space-y-5"
               >
-                {/* NAME */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Name *
+
+                {/* =================================================
+                    NAME
+                ================================================== */}
+
+                <div className="min-w-0">
+
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Product Name *
                   </label>
 
                   <input
                     type="text"
                     value={formData.name}
                     onChange={handleChange("name")}
-                    className={`w-full min-w-0 rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                      formErrors.name
-                        ? "border-red-400"
-                        : "border-slate-300"
-                    }`}
+                    placeholder="Enter product name"
+                    className={`
+                      block
+                      w-full
+                      min-w-0
+                      box-border
+                      px-3.5
+                      py-3
+                      border
+                      rounded-xl
+                      text-sm
+                      outline-none
+                      bg-white
+                      transition
+                      focus:ring-2
+                      focus:ring-blue-500/20
+                      ${
+                        formErrors.name
+                          ? "border-red-400"
+                          : "border-slate-300"
+                      }
+                    `}
                   />
 
                   {formErrors.name && (
-                    <p className="mt-1 text-xs text-red-500">
+                    <p className="text-red-500 text-xs mt-1.5">
                       {formErrors.name}
                     </p>
                   )}
+
                 </div>
 
-                {/* PRICE + DISCOUNT */}
-                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* =================================================
+                    PRICE + DISCOUNT
+                ================================================== */}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
                   <div className="min-w-0">
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
+
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                       Original Price (₹) *
                     </label>
 
@@ -603,24 +786,44 @@ export default function SellerMyProducts() {
                       type="number"
                       step="0.01"
                       min="0"
+                      inputMode="decimal"
                       value={formData.price}
                       onChange={handleChange("price")}
-                      className={`w-full min-w-0 rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                        formErrors.price
-                          ? "border-red-400"
-                          : "border-slate-300"
-                      }`}
+                      placeholder="Enter price"
+                      className={`
+                        block
+                        w-full
+                        min-w-0
+                        box-border
+                        px-3.5
+                        py-3
+                        border
+                        rounded-xl
+                        text-sm
+                        outline-none
+                        bg-white
+                        transition
+                        focus:ring-2
+                        focus:ring-blue-500/20
+                        ${
+                          formErrors.price
+                            ? "border-red-400"
+                            : "border-slate-300"
+                        }
+                      `}
                     />
 
                     {formErrors.price && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="text-red-500 text-xs mt-1.5">
                         {formErrors.price}
                       </p>
                     )}
+
                   </div>
 
                   <div className="min-w-0">
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
+
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                       Discount (%)
                     </label>
 
@@ -629,54 +832,100 @@ export default function SellerMyProducts() {
                       step="1"
                       min="0"
                       max="100"
+                      inputMode="numeric"
                       value={formData.discount_percent}
                       onChange={handleChange(
                         "discount_percent"
                       )}
                       placeholder="0 to 100"
-                      className={`w-full min-w-0 rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                        formErrors.discount_percent
-                          ? "border-red-400"
-                          : "border-slate-300"
-                      }`}
+                      className={`
+                        block
+                        w-full
+                        min-w-0
+                        box-border
+                        px-3.5
+                        py-3
+                        border
+                        rounded-xl
+                        text-sm
+                        outline-none
+                        bg-white
+                        transition
+                        focus:ring-2
+                        focus:ring-blue-500/20
+                        ${
+                          formErrors.discount_percent
+                            ? "border-red-400"
+                            : "border-slate-300"
+                        }
+                      `}
                     />
 
                     {formErrors.discount_percent && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="text-red-500 text-xs mt-1.5">
                         {formErrors.discount_percent}
                       </p>
                     )}
+
                   </div>
+
                 </div>
 
-                {/* STOCK */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                {/* =================================================
+                    STOCK
+                ================================================== */}
+
+                <div className="min-w-0">
+
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Stock *
                   </label>
 
                   <input
                     type="number"
                     min="0"
+                    inputMode="numeric"
                     value={formData.stock}
                     onChange={handleChange("stock")}
-                    className={`w-full min-w-0 rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                      formErrors.stock
-                        ? "border-red-400"
-                        : "border-slate-300"
-                    }`}
+                    placeholder="Enter available stock"
+                    className={`
+                      block
+                      w-full
+                      min-w-0
+                      box-border
+                      px-3.5
+                      py-3
+                      border
+                      rounded-xl
+                      text-sm
+                      outline-none
+                      bg-white
+                      transition
+                      focus:ring-2
+                      focus:ring-blue-500/20
+                      ${
+                        formErrors.stock
+                          ? "border-red-400"
+                          : "border-slate-300"
+                      }
+                    `}
                   />
 
                   {formErrors.stock && (
-                    <p className="mt-1 text-xs text-red-500">
+                    <p className="text-red-500 text-xs mt-1.5">
                       {formErrors.stock}
                     </p>
                   )}
+
                 </div>
 
-                {/* CATEGORY */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                {/* =================================================
+                    CATEGORY
+                ================================================== */}
+
+                <div className="min-w-0">
+
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Category
                   </label>
 
@@ -686,51 +935,70 @@ export default function SellerMyProducts() {
                     onChange={handleChange("category")}
                     placeholder="e.g. Electronics"
                     className="
+                      block
                       w-full
                       min-w-0
-                      rounded-lg
+                      box-border
+                      px-3.5
+                      py-3
                       border
                       border-slate-300
-                      px-3
-                      py-2.5
+                      rounded-xl
                       text-sm
                       outline-none
+                      bg-white
+                      transition
                       focus:ring-2
-                      focus:ring-blue-500/40
+                      focus:ring-blue-500/20
                     "
                   />
+
                 </div>
 
-                {/* DESCRIPTION */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                {/* =================================================
+                    DESCRIPTION
+                ================================================== */}
+
+                <div className="min-w-0">
+
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Description
                   </label>
 
                   <textarea
                     value={formData.description}
                     onChange={handleChange("description")}
-                    rows={4}
+                    rows={5}
+                    placeholder="Describe your product..."
                     className="
+                      block
                       w-full
                       min-w-0
-                      resize-none
-                      rounded-lg
+                      box-border
+                      px-3.5
+                      py-3
                       border
                       border-slate-300
-                      px-3
-                      py-2.5
+                      rounded-xl
                       text-sm
                       outline-none
+                      bg-white
+                      transition
+                      resize-none
                       focus:ring-2
-                      focus:ring-blue-500/40
+                      focus:ring-blue-500/20
                     "
                   />
+
                 </div>
 
-                {/* IMAGE */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                {/* =================================================
+                    IMAGE
+                ================================================== */}
+
+                <div className="min-w-0">
+
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Product Image
                   </label>
 
@@ -753,78 +1021,89 @@ export default function SellerMyProducts() {
                       block
                       w-full
                       min-w-0
-                      rounded-lg
+                      box-border
+                      px-3
+                      py-3
                       border
                       border-slate-300
-                      px-3
-                      py-2
+                      rounded-xl
                       text-xs
-                      outline-none
-                      focus:ring-2
-                      focus:ring-blue-500/40
                       sm:text-sm
+                      outline-none
+                      bg-white
+                      focus:ring-2
+                      focus:ring-blue-500/20
                     "
                   />
 
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 mt-1.5">
                     JPG, PNG, WEBP, or GIF; maximum 5 MB.
                   </p>
 
                   {formData.image_url && !imageFile && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Current image will be kept unless
-                      you choose a replacement.
+                    <p className="text-xs text-slate-500 mt-1">
+                      Current image will be kept unless you
+                      choose a replacement.
                     </p>
                   )}
 
                   {imagePreview && (
-                    <img
-                      src={imagePreview}
-                      alt="Product preview"
-                      className="
-                        mt-3
-                        h-20
-                        w-20
-                        rounded-lg
-                        border
-                        border-slate-200
-                        object-cover
-                      "
-                    />
+                    <div className="mt-3">
+
+                      <img
+                        src={imagePreview}
+                        alt="Product preview"
+                        className="
+                          h-24
+                          w-24
+                          rounded-xl
+                          object-cover
+                          border
+                          border-slate-200
+                        "
+                      />
+
+                    </div>
                   )}
+
                 </div>
 
                 {/* =================================================
                     BUTTONS
                 ================================================== */}
+
                 <div
                   className="
                     flex
                     flex-col-reverse
-                    gap-2
-                    border-t
-                    border-slate-100
-                    pt-4
                     sm:flex-row
                     sm:justify-end
+                    gap-3
+                    pt-2
+                    pb-2
                   "
                 >
+
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={closeModal}
+                    disabled={submitting}
                     className="
                       w-full
-                      cursor-pointer
-                      rounded-lg
+                      sm:w-auto
+                      px-5
+                      py-3
+                      text-sm
                       border
                       border-slate-300
-                      px-4
-                      py-2.5
-                      text-sm
-                      text-slate-600
-                      transition
+                      rounded-xl
+                      text-slate-700
+                      bg-white
                       hover:bg-slate-50
-                      sm:w-auto
+                      transition
+                      font-semibold
+                      cursor-pointer
+                      disabled:opacity-50
                     "
                   >
                     Cancel
@@ -835,19 +1114,19 @@ export default function SellerMyProducts() {
                     disabled={submitting}
                     className="
                       w-full
-                      cursor-pointer
-                      rounded-lg
-                      bg-blue-600
-                      px-4
-                      py-2.5
-                      text-sm
-                      font-medium
-                      text-white
-                      transition
-                      hover:bg-blue-700
-                      disabled:cursor-not-allowed
-                      disabled:bg-blue-400
                       sm:w-auto
+                      px-5
+                      py-3
+                      text-sm
+                      bg-blue-600
+                      hover:bg-blue-700
+                      disabled:bg-blue-400
+                      text-white
+                      rounded-xl
+                      font-semibold
+                      transition
+                      cursor-pointer
+                      disabled:cursor-not-allowed
                     "
                   >
                     {submitting
@@ -856,8 +1135,11 @@ export default function SellerMyProducts() {
                       ? "Update Product"
                       : "Add Product"}
                   </button>
+
                 </div>
+
               </form>
+
             </div>
           </div>
         </div>
