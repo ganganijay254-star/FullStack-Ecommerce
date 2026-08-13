@@ -36,25 +36,20 @@ export default function SellerMyProducts() {
   // Mobile modal needs touch scrolling.
   // =========================================================
   useEffect(() => {
-    if (!showModal) return;
+  if (!showModal) return;
 
-    const originalOverflow = document.body.style.overflow;
-    const originalPaddingRight = document.body.style.paddingRight;
+  const originalOverflow = document.body.style.overflow;
+  const originalOverscrollBehavior = document.body.style.overscrollBehavior;
 
-    const scrollbarWidth =
-      window.innerWidth - document.documentElement.clientWidth;
+  // Background page ko lock rakho
+  document.body.style.overflow = "hidden";
+  document.body.style.overscrollBehavior = "none";
 
-    document.body.style.overflow = "hidden";
-
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      document.body.style.paddingRight = originalPaddingRight;
-    };
-  }, [showModal]);
+  return () => {
+    document.body.style.overflow = originalOverflow;
+    document.body.style.overscrollBehavior = originalOverscrollBehavior;
+  };
+}, [showModal]);
 
   // =========================================================
   // FETCH PRODUCTS
@@ -366,19 +361,20 @@ export default function SellerMyProducts() {
     showModal && typeof document !== "undefined"
       ? createPortal(
           <div
-            className="
-              fixed
-              inset-0
-              z-[9999]
-              w-screen
-              h-[100dvh]
-              bg-slate-900/60
-              backdrop-blur-[2px]
-              overflow-y-auto
-              overscroll-contain
-              p-0
-              sm:p-4
-            "
+           className="
+             fixed
+             inset-0
+             z-[100]
+             w-screen
+             h-[100dvh]
+             bg-black/50
+             flex
+             items-center
+             justify-center
+             p-0
+             sm:p-4
+             overscroll-none
+           "
             style={{
               WebkitOverflowScrolling: "touch",
             }}
