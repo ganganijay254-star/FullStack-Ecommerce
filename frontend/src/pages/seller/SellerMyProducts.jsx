@@ -1,1145 +1,538 @@
-import { useState, useEffect, useCallback } from "react";
-import { productAPI } from "../../services/api";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { getApiErrorMessage, orderAPI } from "../../services/api";
 
-export default function SellerMyProducts() {
-  const [products, setProducts] = useState([]);
+const statuses = [
+  "pending",
+  "confirmed",
+  "packed",
+  "shipped",
+  "delivered",
+  "cancelled",
+  "returned",
+];
+
+const money = (v) =>
+  `₹${Number(v || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+  })}`;
+
+export default function SellerOrders() {
+  const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
+  const [pendingChange, setPendingChange] = useState(null);
 
-  // Modal state
-  const [showModal, setShowModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    category: "",
-    price: "",
-    discount_percent: "0",
-    stock: "",
-    image_url: "",
-  });
-
-  const [formErrors, setFormErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState("");
-
-  // =========================================================
-  // LOCK BODY SCROLL WHEN MODAL IS OPEN
-  // =========================================================
-  useEffect(() => {
-    if (!showModal) return;
-
-    const originalOverflow = document.body.style.overflow;
-    const originalTouchAction = document.body.style.touchAction;
-
-    document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      document.body.style.touchAction = originalTouchAction;
-    };
-  }, [showModal]);
-
-  // =========================================================
-  // FETCH PRODUCTS
-  // =========================================================
-  const fetchProducts = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
 
     try {
-      const params = {
+      const res = await orderAPI.getOrders({
         page,
         per_page: 10,
-      };
+        search: search || undefined,
+        status: status || undefined,
+      });
 
-      if (search) {
-        params.search = search;
-      }
-
-      const res = await productAPI.getMyProducts(params);
-
-      setProducts(res.data.products);
-      setPagination(res.data.pagination);
-    } catch (err) {
-      console.error("Failed to fetch products:", err);
-      toast.error("Failed to load your products");
+      setOrders(res.data.orders || []);
+      setPagination(res.data.pagination || null);
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [search, page]);
+  }, [page, search, status]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    const timer = setTimeout(load, 250);
 
-  // =========================================================
-  // CREATE MODAL
-  // =========================================================
-  const openCreateModal = () => {
-    setEditingProduct(null);
+    return () => clearTimeout(timer);
+  }, [load]);
 
-    setFormData({
-      name: "",
-      description: "",
-      category: "",
-      price: "",
-      discount_percent: "0",
-      stock: "",
-      image_url: "",
-    });
-
-    setFormErrors({});
-    setImageFile(null);
-    setImagePreview("");
-    setShowModal(true);
-  };
-
-  // =========================================================
-  // EDIT MODAL
-  // =========================================================
-  const openEditModal = (product) => {
-    setEditingProduct(product);
-
-    setFormData({
-      name: product.name || "",
-      description: product.description || "",
-      category: product.category || "",
-      price: product.original_price
-        ? product.original_price.toString()
-        : product.price?.toString() || "",
-      discount_percent: product.discount_percent
-        ? product.discount_percent.toString()
-        : "0",
-      stock: product.stock?.toString() || "",
-      image_url: product.image_url || "",
-    });
-
-    setFormErrors({});
-    setImageFile(null);
-    setImagePreview(product.image_url || "");
-    setShowModal(true);
-  };
-
-  // =========================================================
-  // CLOSE MODAL
-  // =========================================================
-  const closeModal = () => {
-    if (submitting) return;
-
-    setShowModal(false);
-    setEditingProduct(null);
-    setFormErrors({});
-    setImageFile(null);
-    setImagePreview("");
-  };
-
-  // =========================================================
-  // HANDLE INPUT
-  // =========================================================
-  const handleChange = (field) => (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: e.target.value,
-    }));
-
-    if (formErrors[field]) {
-      setFormErrors((prev) => ({
-        ...prev,
-        [field]: "",
-      }));
-    }
-  };
-
-  // =========================================================
-  // VALIDATION
-  // =========================================================
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.name.trim()) {
-      errors.name = "Product name is required.";
-    }
-
-    if (
-      !formData.price ||
-      isNaN(parseFloat(formData.price)) ||
-      parseFloat(formData.price) < 0
-    ) {
-      errors.price = "Valid price is required.";
-    }
-
-    if (
-      formData.stock === "" ||
-      isNaN(parseInt(formData.stock)) ||
-      parseInt(formData.stock) < 0
-    ) {
-      errors.stock = "Valid stock is required.";
-    }
-
-    if (
-      formData.discount_percent &&
-      (
-        isNaN(parseFloat(formData.discount_percent)) ||
-        parseFloat(formData.discount_percent) < 0 ||
-        parseFloat(formData.discount_percent) > 100
-      )
-    ) {
-      errors.discount_percent =
-        "Discount percentage must be between 0 and 100.";
-    }
-
-    return errors;
-  };
-
-  // =========================================================
-  // SUBMIT
-  // =========================================================
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const errors = validateForm();
-
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    setSubmitting(true);
+  const update = async () => {
+    if (!pendingChange) return;
 
     try {
-      let imageUrl = formData.image_url.trim() || undefined;
+      await orderAPI.updateStatus(
+        pendingChange.order.id,
+        pendingChange.status
+      );
 
-      if (imageFile) {
-        toast.loading("Uploading image...", {
-          id: "upload",
-        });
-
-        const uploadRes = await productAPI.uploadImage(imageFile);
-
-        imageUrl = uploadRes.data.image_url;
-
-        toast.dismiss("upload");
-      }
-
-      const payload = {
-        name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
-        category: formData.category.trim() || undefined,
-        price: parseFloat(formData.price),
-        discount_percent: parseFloat(
-          formData.discount_percent || 0
-        ),
-        stock: parseInt(formData.stock),
-        image_url: imageUrl,
-      };
-
-      if (editingProduct) {
-        await productAPI.updateProduct(
-          editingProduct.id,
-          payload
-        );
-
-        toast.success("Product updated successfully!");
-      } else {
-        await productAPI.createProduct(payload);
-
-        toast.success("Product created successfully!");
-      }
-
-      setShowModal(false);
-      setEditingProduct(null);
-      fetchProducts();
-    } catch (err) {
-      console.error("Product operation failed:", err);
-
-      const msg =
-        err.response?.data?.message ||
-        "Operation failed.";
-
-      toast.error(msg);
-
-      if (err.response?.data?.errors) {
-        setFormErrors(err.response.data.errors);
-      }
-    } finally {
-      setSubmitting(false);
+      toast.success("Order status updated.");
+      setPendingChange(null);
+      load();
+    } catch (e) {
+      toast.error(getApiErrorMessage(e));
     }
   };
 
-  // =========================================================
-  // DELETE
-  // =========================================================
-  const handleDelete = async (product) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete "${product.name}"?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await productAPI.deleteProduct(product.id);
-
-      toast.success("Product deleted successfully!");
-
-      fetchProducts();
-    } catch (err) {
-      toast.error(
-        err.response?.data?.message ||
-          "Failed to delete product."
-      );
+  const getStatusClass = (orderStatus) => {
+    switch (orderStatus) {
+      case "returned":
+        return "bg-rose-50 border-rose-200 text-rose-700";
+      case "cancelled":
+        return "bg-slate-100 border-slate-300 text-slate-600";
+      case "delivered":
+        return "bg-emerald-50 border-emerald-200 text-emerald-700";
+      case "shipped":
+        return "bg-blue-50 border-blue-200 text-blue-700";
+      case "packed":
+        return "bg-purple-50 border-purple-200 text-purple-700";
+      case "confirmed":
+        return "bg-cyan-50 border-cyan-200 text-cyan-700";
+      default:
+        return "bg-amber-50 border-amber-200 text-amber-700";
     }
   };
-
-  // =========================================================
-  // TOGGLE ACTIVE
-  // =========================================================
-  const toggleActive = async (product) => {
-    try {
-      await productAPI.toggleActive(
-        product.id,
-        !product.is_active
-      );
-
-      toast.success(
-        `Product ${
-          product.is_active ? "hidden" : "published"
-        }.`
-      );
-
-      fetchProducts();
-    } catch (err) {
-      toast.error(
-        err.response?.data?.message ||
-          "Could not update product visibility."
-      );
-    }
-  };
-
-  // =========================================================
-  // ESCAPE KEY
-  // =========================================================
-  useEffect(() => {
-    if (!showModal) return;
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape" && !submitting) {
-        closeModal();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [showModal, submitting]);
 
   return (
-    <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+    <div className="w-full min-w-0">
+      {/* Header */}
+      <div className="mb-5 sm:mb-7">
+        <p className="text-[10px] sm:text-xs font-bold tracking-widest text-emerald-600 uppercase">
+          Fulfilment
+        </p>
 
-      {/* =====================================================
-          PAGE HEADER
-      ====================================================== */}
-      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="mt-1 text-2xl sm:text-3xl font-extrabold text-slate-900">
+          Orders Management
+        </h2>
 
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-800">
-            My Products
-          </h2>
-
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage your product catalog and discounts
-          </p>
-        </div>
-
-        <button
-          onClick={openCreateModal}
-          className="
-            w-full
-            sm:w-auto
-            shrink-0
-            px-4
-            py-2.5
-            bg-blue-600
-            hover:bg-blue-700
-            text-white
-            text-sm
-            rounded-xl
-            font-semibold
-            transition
-            cursor-pointer
-          "
-        >
-          + Add Product
-        </button>
+        <p className="mt-1 text-xs sm:text-sm text-slate-500">
+          Track and manage customer orders for your products.
+        </p>
       </div>
 
-      {/* =====================================================
-          SEARCH
-      ====================================================== */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Search your products..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="
-            w-full
-            sm:max-w-sm
-            px-4
-            py-2.5
-            border
-            border-slate-300
-            rounded-xl
-            text-sm
-            outline-none
-            focus:ring-2
-            focus:ring-blue-500/40
-            bg-white
-          "
-        />
-      </div>
+      {/* Main Orders Container */}
+      <section className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+        {/* Filters */}
+        <div className="border-b border-slate-200 p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            {/* Search */}
+            <div className="relative flex-1 min-w-0">
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search order or customer..."
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
 
-      {/* =====================================================
-          TABLE
-      ====================================================== */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : products.length === 0 ? (
-        <div className="text-center py-12 text-slate-400 text-sm">
-          No products yet. Start by adding one!
-        </div>
-      ) : (
-        <div className="w-full bg-white rounded-xl border border-slate-200 overflow-hidden">
+            {/* Status */}
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+              className="w-full sm:w-auto rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            >
+              <option value="">All Statuses</option>
 
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-[900px] w-full text-sm">
-
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">
-                    ID
-                  </th>
-
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">
-                    Name
-                  </th>
-
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">
-                    Category
-                  </th>
-
-                  <th className="text-right px-4 py-3 font-medium text-slate-600">
-                    Price
-                  </th>
-
-                  <th className="text-center px-4 py-3 font-medium text-slate-600">
-                    Discount
-                  </th>
-
-                  <th className="text-right px-4 py-3 font-medium text-slate-600">
-                    Stock
-                  </th>
-
-                  <th className="text-center px-4 py-3 font-medium text-slate-600">
-                    Active
-                  </th>
-
-                  <th className="text-right px-4 py-3 font-medium text-slate-600">
-                    Actions
-                  </th>
-
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-100">
-
-                {products.map((product) => (
-                  <tr
-                    key={product.id}
-                    className="hover:bg-slate-50"
-                  >
-
-                    <td className="px-4 py-3 text-slate-500">
-                      #{product.id}
-                    </td>
-
-                    <td className="px-4 py-3 font-medium text-slate-700">
-                      {product.name}
-                    </td>
-
-                    <td className="px-4 py-3 text-slate-500">
-                      {product.category || "-"}
-                    </td>
-
-                    <td className="px-4 py-3 text-right">
-                      <div className="font-bold text-slate-900">
-                        ₹{product.price?.toFixed(2)}
-                      </div>
-
-                      {product.discount_percent > 0 &&
-                        product.original_price >
-                          product.price && (
-                          <div className="text-xs text-slate-400 line-through">
-                            ₹{product.original_price?.toFixed(2)}
-                          </div>
-                        )}
-                    </td>
-
-                    <td className="px-4 py-3 text-center">
-
-                      {product.discount_percent > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-700">
-                          {product.discount_percent}% OFF
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">
-                          None
-                        </span>
-                      )}
-
-                    </td>
-
-                    <td className="px-4 py-3 text-right">
-
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          product.stock > 0
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {product.stock}
-                      </span>
-
-                    </td>
-
-                    <td className="px-4 py-3 text-center">
-
-                      <button
-                        onClick={() =>
-                          toggleActive(product)
-                        }
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer ${
-                          product.is_active
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-slate-100 text-slate-600 border border-slate-200"
-                        }`}
-                      >
-                        {product.is_active
-                          ? "Published"
-                          : "Hidden"}
-                      </button>
-
-                    </td>
-
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-
-                      <button
-                        onClick={() =>
-                          openEditModal(product)
-                        }
-                        className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer mr-3"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          handleDelete(product)
-                        }
-                        className="text-red-600 hover:text-red-800 font-medium cursor-pointer"
-                      >
-                        Delete
-                      </button>
-
-                    </td>
-
-                  </tr>
-                ))}
-
-              </tbody>
-            </table>
+              {statuses.map((item) => (
+                <option key={item} value={item}>
+                  {item.toUpperCase()}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-      )}
 
-      {/* =====================================================
-          CREATE / EDIT PRODUCT MODAL
-          MOBILE FULL SCREEN + INTERNAL SCROLL
-      ====================================================== */}
+        {/* Loading */}
+        {loading ? (
+          <div className="p-10 sm:p-14 text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
 
-      {showModal && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-[100]
-            w-screen
-            h-[100dvh]
-            bg-black/50
-            flex
-            items-center
-            justify-center
-            p-0
-            sm:p-4
-          "
-          onMouseDown={(e) => {
-            if (
-              e.target === e.currentTarget &&
-              !submitting
-            ) {
-              closeModal();
-            }
-          }}
-        >
+            <p className="mt-3 text-xs sm:text-sm text-slate-500">
+              Loading orders...
+            </p>
+          </div>
+        ) : orders.length === 0 ? (
+          /* Empty */
+          <div className="p-10 sm:p-14 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl">
+              📦
+            </div>
 
-          {/* =================================================
-              MODAL CONTAINER
-          ================================================== */}
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              No orders found
+            </p>
 
-          <div
-            className="
-              relative
-              w-full
-              h-full
-              max-w-none
-              max-h-none
-              bg-white
-              rounded-none
-              shadow-2xl
-              overflow-hidden
-              flex
-              flex-col
+            <p className="mt-1 text-xs text-slate-400">
+              No orders match your current filters.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* =====================================================
+                MOBILE ORDER CARDS
+                Visible below lg
+            ====================================================== */}
+            <div className="block lg:hidden">
+              <div className="divide-y divide-slate-100">
+                {orders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="p-4 sm:p-5 hover:bg-slate-50/50 transition"
+                  >
+                    {/* Order top */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-bold font-mono text-sm text-slate-900">
+                          Order #{order.id}
+                        </p>
 
-              sm:h-auto
-              sm:max-h-[90dvh]
-              sm:max-w-xl
-              sm:rounded-2xl
-            "
-            onMouseDown={(e) => {
-              e.stopPropagation();
-            }}
-          >
+                        <p className="mt-1 text-[11px] text-slate-400 font-mono">
+                          {new Date(order.created_at).toLocaleDateString(
+                            "en-IN"
+                          )}
+                        </p>
+                      </div>
 
-            {/* =================================================
-                MODAL HEADER
-            ================================================== */}
+                      <span
+                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold capitalize ${getStatusClass(
+                          order.status
+                        )}`}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
 
-            <div
-              className="
-                shrink-0
-                flex
-                items-center
-                justify-between
-                gap-3
-                px-4
-                py-4
-                sm:px-6
-                sm:py-5
-                border-b
-                border-slate-200
-                bg-white
-              "
-            >
+                    {/* Customer */}
+                    <div className="mt-4 rounded-xl bg-slate-50 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Customer
+                      </p>
 
-              <div className="min-w-0">
-                <h3 className="text-lg sm:text-xl font-bold text-slate-800 truncate">
-                  {editingProduct
-                    ? "Edit Product"
-                    : "Add Product"}
+                      <p className="mt-1 text-sm font-semibold text-slate-900 break-words">
+                        {order.customer}
+                      </p>
+
+                      {order.customer_email && (
+                        <p className="mt-0.5 text-[11px] text-slate-500 break-all">
+                          {order.customer_email}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Products */}
+                    <div className="mt-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Products
+                      </p>
+
+                      <div className="mt-2 space-y-1.5">
+                        {order.items?.length ? (
+                          order.items.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-start justify-between gap-3 text-xs"
+                            >
+                              <p className="min-w-0 font-medium text-slate-800 break-words">
+                                {item.name}
+                              </p>
+
+                              <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 font-bold text-slate-700">
+                                × {item.quantity}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-slate-400">
+                            No product information.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Amount + Payment */}
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-slate-100 bg-white p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Amount
+                        </p>
+
+                        <p className="mt-1 text-sm font-extrabold font-mono text-slate-900 break-all">
+                          {money(order.total)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-100 bg-white p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Payment
+                        </p>
+
+                        <span className="mt-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-800">
+                          PAID
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Delivery */}
+                    <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
+                      <p className="text-[10px] font-extrabold text-blue-700">
+                        ⚡ Auto-Confirmed · 3–4 Days
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-blue-600">
+                        Standard delivery with end-to-end tracking.
+                      </p>
+                    </div>
+
+                    {/* Status Update */}
+                    <div className="mt-4">
+                      <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Update Status
+                      </label>
+
+                      <select
+                        value={order.status}
+                        onChange={(e) =>
+                          setPendingChange({
+                            order,
+                            status: e.target.value,
+                          })
+                        }
+                        className={`w-full rounded-xl border px-3 py-2.5 text-xs font-semibold capitalize focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${getStatusClass(
+                          order.status
+                        )}`}
+                      >
+                        {statuses.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* =====================================================
+                DESKTOP TABLE
+                Visible lg and above
+            ====================================================== */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full min-w-[900px] text-xs">
+                <thead className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <tr>
+                    {[
+                      "Order",
+                      "Customer",
+                      "Products",
+                      "Amount",
+                      "Payment",
+                      "Status",
+                      "Date",
+                    ].map((h) => (
+                      <th key={h} className="px-4 py-3.5">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {orders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="hover:bg-slate-50/50 transition"
+                    >
+                      {/* Order */}
+                      <td className="px-4 py-3.5 font-bold font-mono text-slate-900">
+                        #{order.id}
+                      </td>
+
+                      {/* Customer */}
+                      <td className="px-4 py-3.5">
+                        <p className="font-semibold text-slate-900">
+                          {order.customer}
+                        </p>
+
+                        <p className="text-[11px] text-slate-400 break-all">
+                          {order.customer_email}
+                        </p>
+                      </td>
+
+                      {/* Products */}
+                      <td className="px-4 py-3.5">
+                        <div className="space-y-1">
+                          {order.items?.map((item) => (
+                            <p
+                              key={item.id}
+                              className="font-medium text-slate-800"
+                            >
+                              {item.name} ×{" "}
+                              <span className="font-bold">
+                                {item.quantity}
+                              </span>
+                            </p>
+                          ))}
+                        </div>
+                      </td>
+
+                      {/* Amount */}
+                      <td className="px-4 py-3.5 font-bold font-mono text-slate-900 whitespace-nowrap">
+                        {money(order.total)}
+                      </td>
+
+                      {/* Payment */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                            PAID
+                          </span>
+
+                          <span className="w-fit rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-600">
+                            ⚡ Auto-Confirmed (3-4 Days)
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3.5">
+                        <select
+                          value={order.status}
+                          onChange={(e) =>
+                            setPendingChange({
+                              order,
+                              status: e.target.value,
+                            })
+                          }
+                          className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold capitalize focus:outline-none ${getStatusClass(
+                            order.status
+                          )}`}
+                        >
+                          {statuses.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Date */}
+                      <td className="px-4 py-3.5 text-slate-500 font-mono text-[11px] whitespace-nowrap">
+                        {new Date(order.created_at).toLocaleDateString(
+                          "en-IN"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* Pagination */}
+        {pagination && (
+          <div className="border-t border-slate-100 px-3 sm:px-4 py-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-[11px] sm:text-xs text-slate-500">
+                {pagination.total} orders found
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={!pagination.has_prev}
+                  onClick={() => setPage((current) => current - 1)}
+                  className="flex-1 sm:flex-none rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50 transition"
+                >
+                  ← Previous
+                </button>
+
+                <span className="hidden sm:block rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                  Page {page}
+                </span>
+
+                <button
+                  disabled={!pagination.has_next}
+                  onClick={() => setPage((current) => current + 1)}
+                  className="flex-1 sm:flex-none rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50 transition"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* =========================================================
+          CONFIRM STATUS MODAL
+      ========================================================== */}
+      {pendingChange && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                  Update Order Status?
                 </h3>
 
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {editingProduct
-                    ? "Update your product details"
-                    : "Add a new product to your store"}
+                <p className="mt-1 text-[11px] sm:text-xs text-slate-500">
+                  Confirm the new status for this order.
                 </p>
               </div>
 
               <button
-                type="button"
-                onClick={closeModal}
-                disabled={submitting}
-                className="
-                  shrink-0
-                  w-9
-                  h-9
-                  flex
-                  items-center
-                  justify-center
-                  rounded-full
-                  text-slate-500
-                  hover:bg-slate-100
-                  hover:text-slate-900
-                  transition
-                  cursor-pointer
-                  disabled:opacity-50
-                  disabled:cursor-not-allowed
-                "
-                aria-label="Close modal"
+                onClick={() => setPendingChange(null)}
+                className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg text-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                aria-label="Close"
               >
-                <span className="text-xl leading-none">
-                  ✕
-                </span>
+                ×
               </button>
-
             </div>
 
-            {/* =================================================
-                SCROLLABLE MODAL BODY
-            ================================================== */}
+            {/* Order info */}
+            <div className="mt-5 rounded-xl bg-slate-50 p-3 sm:p-4">
+              <p className="text-xs font-bold font-mono text-slate-900">
+                Order #{pendingChange.order.id}
+              </p>
 
-            <div
-              className="
-                flex-1
-                min-h-0
-                overflow-y-auto
-                overflow-x-hidden
-                overscroll-contain
-                touch-pan-y
-                px-4
-                py-5
-                sm:px-6
-                sm:py-6
-              "
-            >
+              <p className="mt-1 text-xs text-slate-500 break-words">
+                {pendingChange.order.customer}
+              </p>
+            </div>
 
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-5"
+            {/* New status */}
+            <div className="mt-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                New Status
+              </p>
+
+              <div
+                className={`mt-2 inline-flex rounded-full border px-3 py-1.5 text-xs font-bold capitalize ${getStatusClass(
+                  pendingChange.status
+                )}`}
               >
+                {pendingChange.status}
+              </div>
+            </div>
 
-                {/* =================================================
-                    NAME
-                ================================================== */}
+            {/* Actions */}
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+              <button
+                onClick={() => setPendingChange(null)}
+                className="w-full sm:w-auto rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer transition"
+              >
+                Cancel
+              </button>
 
-                <div className="min-w-0">
-
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Product Name *
-                  </label>
-
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={handleChange("name")}
-                    placeholder="Enter product name"
-                    className={`
-                      block
-                      w-full
-                      min-w-0
-                      box-border
-                      px-3.5
-                      py-3
-                      border
-                      rounded-xl
-                      text-sm
-                      outline-none
-                      bg-white
-                      transition
-                      focus:ring-2
-                      focus:ring-blue-500/20
-                      ${
-                        formErrors.name
-                          ? "border-red-400"
-                          : "border-slate-300"
-                      }
-                    `}
-                  />
-
-                  {formErrors.name && (
-                    <p className="text-red-500 text-xs mt-1.5">
-                      {formErrors.name}
-                    </p>
-                  )}
-
-                </div>
-
-                {/* =================================================
-                    PRICE + DISCOUNT
-                ================================================== */}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-
-                  <div className="min-w-0">
-
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Original Price (₹) *
-                    </label>
-
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      inputMode="decimal"
-                      value={formData.price}
-                      onChange={handleChange("price")}
-                      placeholder="Enter price"
-                      className={`
-                        block
-                        w-full
-                        min-w-0
-                        box-border
-                        px-3.5
-                        py-3
-                        border
-                        rounded-xl
-                        text-sm
-                        outline-none
-                        bg-white
-                        transition
-                        focus:ring-2
-                        focus:ring-blue-500/20
-                        ${
-                          formErrors.price
-                            ? "border-red-400"
-                            : "border-slate-300"
-                        }
-                      `}
-                    />
-
-                    {formErrors.price && (
-                      <p className="text-red-500 text-xs mt-1.5">
-                        {formErrors.price}
-                      </p>
-                    )}
-
-                  </div>
-
-                  <div className="min-w-0">
-
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Discount (%)
-                    </label>
-
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      inputMode="numeric"
-                      value={formData.discount_percent}
-                      onChange={handleChange(
-                        "discount_percent"
-                      )}
-                      placeholder="0 to 100"
-                      className={`
-                        block
-                        w-full
-                        min-w-0
-                        box-border
-                        px-3.5
-                        py-3
-                        border
-                        rounded-xl
-                        text-sm
-                        outline-none
-                        bg-white
-                        transition
-                        focus:ring-2
-                        focus:ring-blue-500/20
-                        ${
-                          formErrors.discount_percent
-                            ? "border-red-400"
-                            : "border-slate-300"
-                        }
-                      `}
-                    />
-
-                    {formErrors.discount_percent && (
-                      <p className="text-red-500 text-xs mt-1.5">
-                        {formErrors.discount_percent}
-                      </p>
-                    )}
-
-                  </div>
-
-                </div>
-
-                {/* =================================================
-                    STOCK
-                ================================================== */}
-
-                <div className="min-w-0">
-
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Stock *
-                  </label>
-
-                  <input
-                    type="number"
-                    min="0"
-                    inputMode="numeric"
-                    value={formData.stock}
-                    onChange={handleChange("stock")}
-                    placeholder="Enter available stock"
-                    className={`
-                      block
-                      w-full
-                      min-w-0
-                      box-border
-                      px-3.5
-                      py-3
-                      border
-                      rounded-xl
-                      text-sm
-                      outline-none
-                      bg-white
-                      transition
-                      focus:ring-2
-                      focus:ring-blue-500/20
-                      ${
-                        formErrors.stock
-                          ? "border-red-400"
-                          : "border-slate-300"
-                      }
-                    `}
-                  />
-
-                  {formErrors.stock && (
-                    <p className="text-red-500 text-xs mt-1.5">
-                      {formErrors.stock}
-                    </p>
-                  )}
-
-                </div>
-
-                {/* =================================================
-                    CATEGORY
-                ================================================== */}
-
-                <div className="min-w-0">
-
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Category
-                  </label>
-
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={handleChange("category")}
-                    placeholder="e.g. Electronics"
-                    className="
-                      block
-                      w-full
-                      min-w-0
-                      box-border
-                      px-3.5
-                      py-3
-                      border
-                      border-slate-300
-                      rounded-xl
-                      text-sm
-                      outline-none
-                      bg-white
-                      transition
-                      focus:ring-2
-                      focus:ring-blue-500/20
-                    "
-                  />
-
-                </div>
-
-                {/* =================================================
-                    DESCRIPTION
-                ================================================== */}
-
-                <div className="min-w-0">
-
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Description
-                  </label>
-
-                  <textarea
-                    value={formData.description}
-                    onChange={handleChange("description")}
-                    rows={5}
-                    placeholder="Describe your product..."
-                    className="
-                      block
-                      w-full
-                      min-w-0
-                      box-border
-                      px-3.5
-                      py-3
-                      border
-                      border-slate-300
-                      rounded-xl
-                      text-sm
-                      outline-none
-                      bg-white
-                      transition
-                      resize-none
-                      focus:ring-2
-                      focus:ring-blue-500/20
-                    "
-                  />
-
-                </div>
-
-                {/* =================================================
-                    IMAGE
-                ================================================== */}
-
-                <div className="min-w-0">
-
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Product Image
-                  </label>
-
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    onChange={(e) => {
-                      const file =
-                        e.target.files?.[0] || null;
-
-                      setImageFile(file);
-
-                      setImagePreview(
-                        file
-                          ? URL.createObjectURL(file)
-                          : formData.image_url
-                      );
-                    }}
-                    className="
-                      block
-                      w-full
-                      min-w-0
-                      box-border
-                      px-3
-                      py-3
-                      border
-                      border-slate-300
-                      rounded-xl
-                      text-xs
-                      sm:text-sm
-                      outline-none
-                      bg-white
-                      focus:ring-2
-                      focus:ring-blue-500/20
-                    "
-                  />
-
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    JPG, PNG, WEBP, or GIF; maximum 5 MB.
-                  </p>
-
-                  {formData.image_url && !imageFile && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      Current image will be kept unless you
-                      choose a replacement.
-                    </p>
-                  )}
-
-                  {imagePreview && (
-                    <div className="mt-3">
-
-                      <img
-                        src={imagePreview}
-                        alt="Product preview"
-                        className="
-                          h-24
-                          w-24
-                          rounded-xl
-                          object-cover
-                          border
-                          border-slate-200
-                        "
-                      />
-
-                    </div>
-                  )}
-
-                </div>
-
-                {/* =================================================
-                    BUTTONS
-                ================================================== */}
-
-                <div
-                  className="
-                    flex
-                    flex-col-reverse
-                    sm:flex-row
-                    sm:justify-end
-                    gap-3
-                    pt-2
-                    pb-2
-                  "
-                >
-
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    disabled={submitting}
-                    className="
-                      w-full
-                      sm:w-auto
-                      px-5
-                      py-3
-                      text-sm
-                      border
-                      border-slate-300
-                      rounded-xl
-                      text-slate-700
-                      bg-white
-                      hover:bg-slate-50
-                      transition
-                      font-semibold
-                      cursor-pointer
-                      disabled:opacity-50
-                    "
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="
-                      w-full
-                      sm:w-auto
-                      px-5
-                      py-3
-                      text-sm
-                      bg-blue-600
-                      hover:bg-blue-700
-                      disabled:bg-blue-400
-                      text-white
-                      rounded-xl
-                      font-semibold
-                      transition
-                      cursor-pointer
-                      disabled:cursor-not-allowed
-                    "
-                  >
-                    {submitting
-                      ? "Saving..."
-                      : editingProduct
-                      ? "Update Product"
-                      : "Add Product"}
-                  </button>
-
-                </div>
-
-              </form>
-
+              <button
+                onClick={update}
+                className="w-full sm:w-auto rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 cursor-pointer transition"
+              >
+                Confirm Update
+              </button>
             </div>
           </div>
         </div>
